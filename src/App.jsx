@@ -5,6 +5,16 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- CONFIGURACIÓ FIREBASE (PROTEGIDA) ---
+const firebaseConfig = {
+  apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
+  authDomain: "xok-webapp.firebaseapp.com",
+  projectId: "xok-webapp",
+  storageBucket: "xok-webapp.firebasestorage.app",
+  messagingSenderId: "568536806614",
+  appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
+  measurementId: "G-2YB656ZKPN"
+};
+const appId = 'xok-webapp';
 let firebaseConfig;
 let appId = 'default-app-id';
 
