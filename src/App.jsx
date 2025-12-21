@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2 } from 'lucide-react';
+import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -102,7 +102,7 @@ const TRANSLATIONS = {
     actions: "Accions", rules: "Regles", supply: "Disponibles", chain: "Cadena",
     fish_btn: "2 Peixos", fish_sub: "Adjacents", shark_btn: "1 Tauró", shark_sub: "Menja enemic",
     lobby_create: "Crear Sala En Línia", lobby_join: "Unir-se a Sala", lobby_id_ph: "Codi de sala...", lobby_enter: "Entrar",
-    lobby_local: "Jugar en Local (Passa i Juga)",
+    lobby_local: "Jugar en Local (Passa i Juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
     game_over: "FINAL", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú",
@@ -111,18 +111,19 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
     you_are: "Ets el jugador",
     err_full: "Sala plena o no existeix.", err_auth: "Error d'autenticació.",
-    err_create: "Error creant la sala. Revisa si has creat la 'Firestore Database' a la consola de Firebase.",
-    local_mode_badge: "MODE LOCAL", online_mode_badge: "EN LÍNIA",
+    err_create: "Error creant la sala. Revisa connexió.",
+    local_mode_badge: "MODE LOCAL", online_mode_badge: "EN LÍNIA", ai_mode_badge: "MODE CPU",
     tap_confirm: "Clica de nou per confirmar",
     instr_fish_1: "Col·loca el primer peix",
-    instr_fish_2: "Col·loca el segon peix"
+    instr_fish_2: "Col·loca el segon peix",
+    ai_thinking: "La CPU està pensant..."
   },
   en: {
     title: "XOK", edition: "Digital Edition", turn: "Turn", white: "WHITE", black: "BLACK",
     actions: "Actions", rules: "Rules", supply: "Available", chain: "Chain",
     fish_btn: "2 Fish", fish_sub: "Adjacent", shark_btn: "1 Shark", shark_sub: "Eats enemy",
     lobby_create: "Create Online Room", lobby_join: "Join Room", lobby_id_ph: "Room Code...", lobby_enter: "Enter",
-    lobby_local: "Play Local (Pass & Play)",
+    lobby_local: "Play Local (Pass & Play)", lobby_ai: "Play vs CPU (AI)",
     lobby_waiting: "Waiting for opponent...", lobby_share: "Share code:",
     lobby_online_divider: "ONLINE",
     game_over: "GAME OVER", win_msg: "WINS!", play_again: "Play Again", exit_lobby: "Exit to Menu",
@@ -131,18 +132,19 @@ const TRANSLATIONS = {
     config_shark: "Shark Config", rotate_hint: "Click direction",
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
-    err_create: "Error creating room. Check if 'Firestore Database' is created in Firebase Console.",
-    local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE",
+    err_create: "Error creating room. Check connection.",
+    local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE", ai_mode_badge: "CPU MODE",
     tap_confirm: "Tap again to confirm",
     instr_fish_1: "Place the first fish",
-    instr_fish_2: "Place the second fish"
+    instr_fish_2: "Place the second fish",
+    ai_thinking: "CPU is thinking..."
   },
   es: {
     title: "XOK", edition: "Edición Digital", turn: "Turno", white: "BLANCO", black: "NEGRO",
     actions: "Acciones", rules: "Reglas", supply: "Disponibles", chain: "Cadena",
     fish_btn: "2 Peces", fish_sub: "Adyacentes", shark_btn: "1 Tiburón", shark_sub: "Come enemigo",
     lobby_create: "Crear Sala En Línea", lobby_join: "Unirse a Sala", lobby_id_ph: "Código de sala...", lobby_enter: "Entrar",
-    lobby_local: "Jugar en Local (Pasa y Juega)",
+    lobby_local: "Jugar en Local (Pasa y Juega)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperando oponente...", lobby_share: "Comparte este código:",
     lobby_online_divider: "EN LÍNEA",
     game_over: "FINAL", win_msg: "GANA!", play_again: "Jugar de nuevo", exit_lobby: "Salir al Menú",
@@ -151,11 +153,12 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
-    err_create: "Error creando sala. Revisa si has creado la 'Firestore Database' en la consola de Firebase.",
-    local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA",
+    err_create: "Error creando sala. Revisa conexión.",
+    local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA", ai_mode_badge: "MODO CPU",
     tap_confirm: "Pulsa de nuevo para confirmar",
     instr_fish_1: "Coloca el primer pez",
-    instr_fish_2: "Coloca el segundo pez"
+    instr_fish_2: "Coloca el segundo pez",
+    ai_thinking: "La CPU está pensando..."
   }
 };
 
@@ -207,10 +210,10 @@ const AIResponseBox = ({ loading, response, type, onClose }) => {
 
 // --- SUBCOMPONENTS ---
 
-const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, t }) => (
+const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
   <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
   <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.WHITE ? 'bg-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
-  <div className="font-black text-slate-800 text-sm mb-2">{t('white')} {playerColor === PLAYERS.WHITE && !isLocal && "(TU)"}</div>
+  <div className="font-black text-slate-800 text-sm mb-2 flex items-center justify-center gap-1">{t('white')} {(playerColor === PLAYERS.WHITE && !isLocal) || isAI ? " (TU)" : ""}</div>
   <div className="flex flex-col gap-1 text-xs mb-2 items-center">
   <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.white.fish}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-500"/> <b>{supply.white.shark_small}</b></div>
@@ -222,7 +225,7 @@ const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, t }) =>
   </div>
   </div>
   <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.BLACK ? 'bg-slate-900 text-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
-  <div className="font-black text-white text-sm mb-2">{t('black')} {playerColor === PLAYERS.BLACK && !isLocal && "(TU)"}</div>
+  <div className="font-black text-white text-sm mb-2 flex items-center justify-center gap-1">{t('black')} {isAI ? <Bot size={14} className="ml-1"/> : ((playerColor === PLAYERS.BLACK && !isLocal) && "(TU)")}</div>
   <div className="flex flex-col gap-1 text-xs mb-2 items-center">
   <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.black.fish}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-400"/> <b>{supply.black.shark_small}</b></div>
@@ -240,7 +243,6 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
   const rotate = (direction) => setSharkSelection(prev => ({ ...prev, rotation: direction === 'cw' ? (prev.rotation + 1) % 6 : (prev.rotation + 5) % 6 }));
   const currentType = sharkSelection.type;
   const count = supply[turn][currentType];
-
   const btnCls = (type) => {
     const num = supply[turn][type];
     const isActive = currentType === type;
@@ -295,6 +297,7 @@ export default function XokGameHex() {
   const [playerColor, setPlayerColor] = useState(null);
   const [isJoined, setIsJoined] = useState(false);
   const [isLocal, setIsLocal] = useState(false);
+  const [isAI, setIsAI] = useState(false);
   const [inputRoomId, setInputRoomId] = useState('');
   const [creatingRoom, setCreatingRoom] = useState(false);
 
@@ -312,10 +315,33 @@ export default function XokGameHex() {
   const [aiState, setAiState] = useState({ loading: false, response: null, type: null });
   const [hoverCell, setHoverCell] = useState(null);
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
-  const [lang, setLang] = useState('ca');
+  const [boardScale, setBoardScale] = useState(1);
   const [showRules, setShowRules] = useState(false);
 
+  const getBrowserLang = () => {
+    const navLang = navigator.language || navigator.userLanguage;
+    if (navLang?.startsWith('ca')) return 'ca';
+    if (navLang?.startsWith('es')) return 'es';
+    return 'en';
+  };
+  const [lang, setLang] = useState(getBrowserLang);
   const t = (key) => TRANSLATIONS[lang][key] || key;
+
+  useEffect(() => {
+    const handleResize = () => {
+      const availWidth = window.innerWidth;
+      const baseWidth = 800;
+      const padding = 40;
+      if (availWidth < baseWidth + padding) {
+        setBoardScale((availWidth - padding) / baseWidth);
+      } else {
+        setBoardScale(1);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => { try { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } } catch(e) { console.warn("Auth failed", e); } };
@@ -325,7 +351,7 @@ export default function XokGameHex() {
   }, []);
 
   useEffect(() => {
-    if (!user || !roomId || isLocal) return;
+    if (!user || !roomId || isLocal || isAI) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
     const unsubscribe = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -340,7 +366,102 @@ export default function XokGameHex() {
       }
     }, (error) => console.error("Error sync:", error));
     return () => unsubscribe();
-  }, [user, roomId, isLocal, turn]);
+  }, [user, roomId, isLocal, isAI, turn]);
+
+  useEffect(() => {
+    if (isAI && turn === PLAYERS.BLACK && !winner) {
+      const timer = setTimeout(() => {
+        makeAIMove();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAI, turn, winner]);
+
+  const makeAIMove = () => {
+    const cpuColor = PLAYERS.BLACK;
+    const opponent = PLAYERS.WHITE;
+    const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
+    sharkTypes.sort(() => Math.random() - 0.5);
+
+    for (const sType of sharkTypes) {
+      if (supply[cpuColor][sType] > 0) {
+        for (let i=0; i<30; i++) {
+          const randCell = board[Math.floor(Math.random() * board.length)];
+          const randRot = Math.floor(Math.random() * 6);
+          if (randCell.owner === cpuColor || (randCell.type && randCell.type.includes('shark'))) continue;
+          const mouths = getActiveMouths(sType, randRot);
+          let eaten = 0;
+          if (randCell.type === PIECE_TYPES.FISH && randCell.owner === opponent) eaten++;
+          const neighbors = getNeighbors(randCell.q, randCell.r);
+          mouths.forEach(dirIdx => {
+            const nC = neighbors[dirIdx];
+            const nCell = board.find(c => c.q === nC.q && c.r === nC.r);
+            if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
+          });
+
+            if (eaten > 0) {
+              executeAIMoveAction({ type: 'shark', q: randCell.q, r: randCell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
+              return;
+            }
+        }
+      }
+    }
+
+    if (supply[cpuColor].fish >= 2) {
+      const emptyCells = board.filter(c => !c.type);
+      if (emptyCells.length > 0) {
+        for (let i=0; i<20; i++) {
+          const c1 = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+          const ns = getNeighbors(c1.q, c1.r);
+          const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
+          if (validNeighbors.length > 0) {
+            const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            executeAIMoveAction({ type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r });
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const executeAIMoveAction = (move) => {
+    const newBoard = board.map(c => ({...c}));
+    const newSupply = JSON.parse(JSON.stringify(supply));
+    const cpuColor = PLAYERS.BLACK;
+
+    if (move.type === 'fish') {
+      const c1Index = newBoard.findIndex(c => c.q === move.q1 && c.r === move.r1);
+      const c2Index = newBoard.findIndex(c => c.q === move.q2 && c.r === move.r2);
+      if (c1Index >= 0) { newBoard[c1Index].type = PIECE_TYPES.FISH; newBoard[c1Index].owner = cpuColor; }
+      if (c2Index >= 0) { newBoard[c2Index].type = PIECE_TYPES.FISH; newBoard[c2Index].owner = cpuColor; }
+      newSupply[cpuColor].fish -= 2;
+      addLog(`${t('black')} (CPU) posa 2 peixos.`);
+    } else {
+      const eatenIndices = [];
+      const targetIdx = newBoard.findIndex(c => c.q === move.q && c.r === move.r);
+      const targetCell = newBoard[targetIdx];
+      if (targetCell.type === PIECE_TYPES.FISH && targetCell.owner !== cpuColor) eatenIndices.push(targetIdx);
+      const neighbors = getNeighbors(move.q, move.r);
+      move.mouths.forEach(dir => {
+        const n = neighbors[dir];
+        const idx = newBoard.findIndex(c => c.q === n.q && c.r === n.r);
+        if (idx >= 0 && newBoard[idx].type === PIECE_TYPES.FISH && newBoard[idx].owner !== cpuColor) {
+          if (!eatenIndices.includes(idx)) eatenIndices.push(idx);
+        }
+      });
+      eatenIndices.forEach(idx => {
+        newSupply[newBoard[idx].owner].fish += 1;
+        if (idx !== targetIdx) { newBoard[idx].type = null; newBoard[idx].owner = null; }
+      });
+      newBoard[targetIdx].type = move.sharkType;
+      newBoard[targetIdx].owner = cpuColor;
+      newBoard[targetIdx].mouths = move.mouths;
+      newSupply[cpuColor][move.sharkType] -= 1;
+      addLog(`${t('black')} (CPU) menja ${eatenIndices.length} peixos!`);
+    }
+    endTurnDB(newBoard, newSupply);
+  };
+
 
   const createRoom = async () => {
     if (!user) { alert(t('err_auth')); return; }
@@ -350,7 +471,7 @@ export default function XokGameHex() {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
       const initialState = { board: JSON.stringify(generateBoardCells()), turn: PLAYERS.WHITE, supply: INITIAL_SUPPLY, winner: null, winReason: '', logs: [t('log_welcome')], createdAt: new Date().toISOString() };
       await setDoc(roomRef, initialState);
-      setRoomId(newRoomId); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsJoined(true);
+      setRoomId(newRoomId); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsAI(false); setIsJoined(true);
     } catch (error) { console.error("Error creant sala:", error); alert(t('err_create') + "\n" + error.message); } finally { setCreatingRoom(false); }
   };
 
@@ -359,14 +480,20 @@ export default function XokGameHex() {
     const cleanId = inputRoomId.toUpperCase().trim();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', cleanId);
     const snap = await getDoc(roomRef);
-    if (snap.exists()) { setRoomId(cleanId); setPlayerColor(PLAYERS.BLACK); setIsLocal(false); setIsJoined(true); } else { alert(t('err_full')); }
+    if (snap.exists()) { setRoomId(cleanId); setPlayerColor(PLAYERS.BLACK); setIsLocal(false); setIsAI(false); setIsJoined(true); } else { alert(t('err_full')); }
   };
 
-  const startLocalGame = () => { setRoomId(null); setPlayerColor(null); setIsLocal(true); setIsJoined(true); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]); };
-  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); };
+  const startLocalGame = () => { setRoomId(null); setPlayerColor(null); setIsLocal(true); setIsAI(false); setIsJoined(true); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]); };
+
+  const startAIGame = () => {
+    setRoomId(null); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsAI(true); setIsJoined(true);
+    setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]);
+  };
+
+  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); };
 
   const updateGameState = async (newBoard, newSupply, nextTurn, newLogs, newWinner = null, newReason = '') => {
-    if (isLocal) { setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs); if (newWinner) { setWinner(newWinner); setWinReason(newReason); } return; }
+    if (isLocal || isAI) { setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs); if (newWinner) { setWinner(newWinner); setWinReason(newReason); } return; }
     if (!roomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
     await updateDoc(roomRef, { board: JSON.stringify(newBoard), supply: newSupply, turn: nextTurn, logs: newLogs, winner: newWinner, winReason: newReason });
@@ -446,7 +573,9 @@ export default function XokGameHex() {
 
   const handleCellClick = (cell) => {
     if (winner || !cell) return;
-    if (!isLocal && turn !== playerColor) return;
+    if (!isLocal && !isAI && turn !== playerColor) return;
+    if (isAI && turn === PLAYERS.BLACK) return;
+
     const { q, r } = cell;
 
     if (selectedAction === 'shark' || phase === 'PLACING_FISH_2') {
@@ -495,7 +624,7 @@ export default function XokGameHex() {
     const isHovered = !isConfirmedPos && hoverCell && hoverCell.q === cell.q && hoverCell.r === cell.r;
     let isHighlight = false, isValidTarget = false, isImpacted = false, showGhostShark = false, showGhostFish = false;
 
-    if (turn === playerColor || isLocal) {
+    if (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE)) {
       if (selectedAction === 'fish') {
         if (phase === 'PLACING_FISH_1' && !cell.type) isValidTarget = true;
         if (phase === 'PLACING_FISH_2') {
@@ -516,7 +645,7 @@ export default function XokGameHex() {
 
     return (
       <div key={`${cell.q},${cell.r}`} onClick={() => handleCellClick(cell)} onMouseEnter={() => setHoverCell(cell)} onMouseLeave={() => setHoverCell(null)}
-      style={{ position: 'absolute', left: `calc(50% + ${x + centerX}px)`, top: `calc(50% + ${y + centerY}px)`, width: `${HEX_WIDTH}px`, height: `${HEX_HEIGHT}px`, marginLeft: `-${HEX_WIDTH/2}px`, marginTop: `-${HEX_HEIGHT/2}px`, clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", zIndex: isConfirmedPos ? 50 : 10, cursor: (isLocal || turn === playerColor) ? 'pointer' : 'default' }}
+      style={{ position: 'absolute', left: `calc(50% + ${x + centerX}px)`, top: `calc(50% + ${y + centerY}px)`, width: `${HEX_WIDTH}px`, height: `${HEX_HEIGHT}px`, marginLeft: `-${HEX_WIDTH/2}px`, marginTop: `-${HEX_HEIGHT/2}px`, clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", zIndex: isConfirmedPos ? 50 : 10, cursor: (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE)) ? 'pointer' : 'default' }}
       className={`flex items-center justify-center transition-all duration-200 ${isImpacted ? 'bg-rose-500/80 animate-pulse border-rose-600 border-2' : ''} ${!isImpacted && isValidTarget && !isConfirmedPos ? 'bg-teal-400 hover:bg-teal-300' : ''} ${!isImpacted && !isValidTarget ? 'bg-white/20 hover:bg-white/30' : ''} ${isHighlight ? 'bg-teal-500' : ''} ${!isValidTarget && !isHighlight && !isImpacted && !isConfirmedPos ? 'backdrop-blur-[1px]' : ''} ${isConfirmedPos ? 'bg-teal-200 ring-4 ring-teal-400 z-50 scale-105' : ''}`}>
       {cell.type === PIECE_TYPES.FISH && <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center shadow-md ${isImpacted ? 'opacity-50 grayscale' : ''}`}><Fish className={pieceColor} size={26} strokeWidth={2.5} /></div>}
       {cell.type && cell.type.includes('shark') && <div className={`w-14 h-14 rounded-xl ${bgColor} flex items-center justify-center relative shadow-lg`}><SharkIcon color={isWhite ? "#0f172a" : "#ffffff"} size={32} />{cell.mouths.map((m, i) => <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500 border-y-[7px] border-y-transparent"></div></div>)}</div>}
@@ -537,10 +666,11 @@ export default function XokGameHex() {
       <h1 className="text-4xl font-black text-center text-slate-800 mb-2">XOK</h1>
       <p className="text-center text-slate-500 mb-8">{t('edition')}</p>
       <div className="space-y-3">
-      <Button onClick={startLocalGame} className="w-full py-4 text-lg shadow-teal-500/30 bg-indigo-600 hover:bg-indigo-700 gap-3"><Monitor size={20}/> {t('lobby_local')}</Button>
+      <Button onClick={startLocalGame} className="w-full py-4 text-lg shadow-teal-500/30 bg-indigo-600 hover:bg-indigo-700 gap-4"><div className="flex items-center gap-1 bg-indigo-800/0 px-2 py-1 rounded-lg"><User size={18}/><span className="text-[10px] font-black">VS</span><User size={18}/></div><span>{t('lobby_local')}</span></Button>
+      <Button onClick={startAIGame} className="w-full py-4 text-lg shadow-purple-500/30 bg-purple-600 hover:bg-purple-700 gap-4"><div className="flex items-center gap-1 bg-purple-800/0 px-2 py-1 rounded-lg"><User size={18}/><span className="text-[10px] font-black">VS</span><Bot size={18}/></div><span>{t('lobby_ai')}</span></Button>
       <div className="relative py-2"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-400">{t('lobby_online_divider')}</span></div></div>
       <Button onClick={createRoom} disabled={creatingRoom} className="w-full py-3 gap-3" variant="secondary">
-      {creatingRoom ? <><span className="animate-spin">⏳</span> Creant...</> : <><Users size={20}/> {t('lobby_create')}</>}
+      {creatingRoom ? <><Loader2 size={20} className="animate-spin"/> Creant...</> : <><Users size={20}/> {t('lobby_create')}</>}
       </Button>
       <div className="flex gap-2"><input type="text" placeholder={t('lobby_id_ph')} className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none font-mono uppercase text-center" value={inputRoomId} onChange={(e) => setInputRoomId(e.target.value)} /><Button onClick={joinRoom} variant="outline">{t('lobby_enter')}</Button></div>
       </div>
