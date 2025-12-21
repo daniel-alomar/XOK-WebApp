@@ -9,15 +9,16 @@ import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } 
 // ******************************************************************************************
 
 const MY_FIREBASE_CONFIG = {
-  apiKey: "POSA_LA_TEVA_API_KEY_AQUI",
-  authDomain: "POSA_EL_TEU_ID.firebaseapp.com",
-  projectId: "POSA_EL_TEU_PROJECT_ID",
-  storageBucket: "POSA_EL_TEU_ID.appspot.com",
-  messagingSenderId: "POSA_EL_TEU_SENDER_ID",
-  appId: "POSA_EL_TEU_APP_ID"
+  apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
+  authDomain: "xok-webapp.firebaseapp.com",
+  projectId: "xok-webapp",
+  storageBucket: "xok-webapp.firebasestorage.app",
+  messagingSenderId: "568536806614",
+  appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
+  measurementId: "G-2YB656ZKPN"
 };
 
-const MY_APP_ID = 'xok-live';
+const MY_APP_ID = 'xok-webapp';
 
 // ******************************************************************************************
 // *** FI DE LA ZONA D'EDICIÓ ***
