@@ -9,23 +9,21 @@ import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } 
 // ******************************************************************************************
 
 const MY_FIREBASE_CONFIG = {
-  // Substitueix els textos entre cometes per les teves dades reals de la consola de Firebase
-  apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
-  authDomain: "xok-webapp.firebaseapp.com",
-  projectId: "xok-webapp",
-  storageBucket: "xok-webapp.firebasestorage.app",
-  messagingSenderId: "568536806614",
-  appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
-  measurementId: "G-2YB656ZKPN"
+  apiKey: "POSA_LA_TEVA_API_KEY_AQUI",
+  authDomain: "POSA_EL_TEU_ID.firebaseapp.com",
+  projectId: "POSA_EL_TEU_PROJECT_ID",
+  storageBucket: "POSA_EL_TEU_ID.appspot.com",
+  messagingSenderId: "POSA_EL_TEU_SENDER_ID",
+  appId: "POSA_EL_TEU_APP_ID"
 };
 
-const MY_APP_ID = 'xok-webapp'; // Pots deixar-ho així o canviar-ho
+const MY_APP_ID = 'xok-live';
 
 // ******************************************************************************************
-// *** FI DE LA ZONA D'EDICIÓ - NO TOQUIS RES MÉS A PARTIR D'AQUÍ ***
+// *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-// Lògica per triar la configuració correcta (Xat vs Producció)
+// Lògica per triar la configuració correcta
 const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
 const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
 
@@ -48,6 +46,16 @@ const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="no
   </svg>
 );
 
+// --- CONSTANTS ---
+const PLAYERS = { WHITE: 'white', BLACK: 'black' };
+const PIECE_TYPES = {
+  FISH: 'fish',
+  SHARK_SMALL: 'shark_small',
+  SHARK_BIG_60: 'shark_big_60',
+  SHARK_BIG_120: 'shark_big_120',
+  SHARK_BIG_180: 'shark_big_180',
+};
+
 // --- COMPONENT: INDICADOR DE BOQUES ---
 const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
   const points = [];
@@ -65,31 +73,6 @@ const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
   );
 };
 
-// --- FONS MARÍ MINIMALISTA ---
-const MarinePattern = () => (
-  <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden">
-  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-  <pattern id="waves" x="0" y="0" width="120" height="80" patternUnits="userSpaceOnUse">
-  <path d="M0 40 Q 30 20, 60 40 T 120 40" fill="none" stroke="#0f172a" strokeWidth="1.5" opacity="0.15"/>
-  <path d="M0 60 Q 30 40, 60 60 T 120 60" fill="none" stroke="#0f172a" strokeWidth="1" opacity="0.1"/>
-  </pattern>
-  </defs>
-  <rect width="100%" height="100%" fill="url(#waves)" />
-  </svg>
-  <div className="absolute inset-0 bg-radial-gradient from-transparent to-cyan-950 opacity-40"></div>
-  </div>
-);
-
-// --- CONSTANTS ---
-const PLAYERS = { WHITE: 'white', BLACK: 'black' };
-const PIECE_TYPES = {
-  FISH: 'fish',
-  SHARK_SMALL: 'shark_small',
-  SHARK_BIG_60: 'shark_big_60',
-  SHARK_BIG_120: 'shark_big_120',
-  SHARK_BIG_180: 'shark_big_180',
-};
 const INITIAL_SUPPLY = {
   [PLAYERS.WHITE]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
   [PLAYERS.BLACK]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
@@ -127,7 +110,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
     you_are: "Ets el jugador",
     err_full: "Sala plena o no existeix.", err_auth: "Error d'autenticació.",
-    err_create: "Error creant la sala. Revisa la connexió o les regles de Firebase.",
+    err_create: "Error creant la sala. Revisa si has creat la 'Firestore Database' a la consola de Firebase.",
     local_mode_badge: "MODE LOCAL", online_mode_badge: "EN LÍNIA",
     tap_confirm: "Clica de nou per confirmar",
     instr_fish_1: "Col·loca el primer peix",
@@ -147,7 +130,7 @@ const TRANSLATIONS = {
     config_shark: "Shark Config", rotate_hint: "Click direction",
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
-    err_create: "Error creating room. Check connection or Firebase rules.",
+    err_create: "Error creating room. Check if 'Firestore Database' is created in Firebase Console.",
     local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE",
     tap_confirm: "Tap again to confirm",
     instr_fish_1: "Place the first fish",
@@ -167,7 +150,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
-    err_create: "Error creando sala. Revisa conexión o reglas Firebase.",
+    err_create: "Error creando sala. Revisa si has creado la 'Firestore Database' en la consola de Firebase.",
     local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA",
     tap_confirm: "Pulsa de nuevo para confirmar",
     instr_fish_1: "Coloca el primer pez",
@@ -221,7 +204,7 @@ const AIResponseBox = ({ loading, response, type, onClose }) => {
   );
 };
 
-// --- SUBCOMPONENTS EXTRETS ---
+// --- SUBCOMPONENTS ---
 
 const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, t }) => (
   <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
@@ -312,7 +295,7 @@ export default function XokGameHex() {
   const [isJoined, setIsJoined] = useState(false);
   const [isLocal, setIsLocal] = useState(false);
   const [inputRoomId, setInputRoomId] = useState('');
-  const [creatingRoom, setCreatingRoom] = useState(false); // ESTAT DE CÀRREGA PER CREAR SALA
+  const [creatingRoom, setCreatingRoom] = useState(false);
 
   const [board, setBoard] = useState(generateBoardCells);
   const [turn, setTurn] = useState(PLAYERS.WHITE);
@@ -358,37 +341,16 @@ export default function XokGameHex() {
     return () => unsubscribe();
   }, [user, roomId, isLocal, turn]);
 
-  // --- CREAR SALA (Amb gestió d'errors i loading) ---
   const createRoom = async () => {
     if (!user) { alert(t('err_auth')); return; }
-
     setCreatingRoom(true);
     try {
       const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-      // Nota: Assegura't que el 'appId' coincideix amb la ruta permesa a les teves Regles de Firestore
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
-
-      const initialState = {
-        board: JSON.stringify(generateBoardCells()),
-        turn: PLAYERS.WHITE,
-        supply: INITIAL_SUPPLY,
-        winner: null,
-        winReason: '',
-        logs: [t('log_welcome')],
-        createdAt: new Date().toISOString()
-      };
-
+      const initialState = { board: JSON.stringify(generateBoardCells()), turn: PLAYERS.WHITE, supply: INITIAL_SUPPLY, winner: null, winReason: '', logs: [t('log_welcome')], createdAt: new Date().toISOString() };
       await setDoc(roomRef, initialState);
-      setRoomId(newRoomId);
-      setPlayerColor(PLAYERS.WHITE);
-      setIsLocal(false);
-      setIsJoined(true);
-    } catch (error) {
-      console.error("Error creant sala:", error);
-      alert(t('err_create') + "\n" + error.message);
-    } finally {
-      setCreatingRoom(false);
-    }
+      setRoomId(newRoomId); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsJoined(true);
+    } catch (error) { console.error("Error creant sala:", error); alert(t('err_create') + "\n" + error.message); } finally { setCreatingRoom(false); }
   };
 
   const joinRoom = async () => {
@@ -568,7 +530,6 @@ export default function XokGameHex() {
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <MarinePattern />
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-300 relative">
       <div className="absolute top-4 right-4 flex gap-2"><button onClick={() => setLang('ca')} className={`text-xs font-bold px-1 ${lang==='ca' ? 'text-teal-600 underline' : 'text-slate-400'}`}>CA</button><button onClick={() => setLang('en')} className={`text-xs font-bold px-1 ${lang==='en' ? 'text-teal-600 underline' : 'text-slate-400'}`}>EN</button><button onClick={() => setLang('es')} className={`text-xs font-bold px-1 ${lang==='es' ? 'text-teal-600 underline' : 'text-slate-400'}`}>ES</button></div>
       <div className="flex justify-center mb-6"><div className="p-4 bg-teal-100 rounded-full"><SharkIcon size={48} color="#0d9488" /></div></div>
@@ -613,7 +574,7 @@ export default function XokGameHex() {
     </div>
     <div className="p-3 bg-slate-50 border-t border-slate-200 h-24 overflow-y-auto font-mono text-[10px] text-slate-500">{gameLog.map((l, i) => <div key={i} className="mb-1 border-b border-slate-100 pb-1 last:border-0">› {l}</div>)}</div>
     </div>
-    <div className="flex-1 bg-cyan-900 overflow-hidden relative"><MarinePattern /><div className="absolute inset-0 flex items-center justify-center"><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
+    <div className="flex-1 bg-cyan-900 overflow-hidden relative"><div className="absolute inset-0 flex items-center justify-center"><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
     {winner && <Modal title={t('game_over')} onClose={exitLobby}><div className="text-center py-4"><Trophy size={48} className="mx-auto text-yellow-500 mb-4 animate-bounce" /><h2 className="text-4xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</h2><div className="bg-teal-50 text-teal-800 px-4 py-2 rounded-lg font-bold">{winReason}</div><Button onClick={exitLobby} className="w-full mt-6">{t('exit_lobby')}</Button></div></Modal>}
     {showRules && <Modal title={t('rules_title')} onClose={() => setShowRules(false)}><div className="space-y-4 text-slate-600 text-sm"><p className="bg-slate-50 p-3 rounded-lg border border-slate-200">{t('rules_goal')}</p><div><h4 className="font-bold text-teal-700">{t('rules_action1_title')}</h4><p>{t('rules_action1_desc')}</p></div><div><h4 className="font-bold text-rose-700">{t('rules_action2_title')}</h4><p>{t('rules_action2_desc')}</p><p className="mt-2 text-xs bg-rose-50 p-2 rounded text-rose-800">{t('rules_shark_eat')}</p></div><p className="text-xs text-slate-400 italic border-t pt-2">{t('rules_shark_types')}</p></div></Modal>}
     </div>
