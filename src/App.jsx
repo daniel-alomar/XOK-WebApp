@@ -102,7 +102,7 @@ const TRANSLATIONS = {
     actions: "Accions", rules: "Regles", supply: "Disponibles", chain: "Cadena",
     fish_btn: "2 Peixos", fish_sub: "Adjacents", shark_btn: "1 Tauró", shark_sub: "Menja enemic",
     lobby_create: "Crear Sala En Línia", lobby_join: "Unir-se a Sala", lobby_id_ph: "Codi de sala...", lobby_enter: "Entrar",
-    lobby_local: "Jugar en Local (Passa i Juga)", lobby_ai: "Jugar vs CPU (IA)",
+    lobby_local: "Jugar en local (passa i juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
     game_over: "FINAL", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú",
@@ -368,6 +368,7 @@ export default function XokGameHex() {
     return () => unsubscribe();
   }, [user, roomId, isLocal, isAI, turn]);
 
+  // AI TURN LOGIC
   useEffect(() => {
     if (isAI && turn === PLAYERS.BLACK && !winner) {
       const timer = setTimeout(() => {
@@ -377,51 +378,60 @@ export default function XokGameHex() {
     }
   }, [isAI, turn, winner]);
 
+  // ROBUST AI MOVE GENERATOR
   const makeAIMove = () => {
     const cpuColor = PLAYERS.BLACK;
     const opponent = PLAYERS.WHITE;
+
+    // Shuffle board for randomness
+    const shuffledBoard = [...board].sort(() => Math.random() - 0.5);
     const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
     sharkTypes.sort(() => Math.random() - 0.5);
 
+    // 1. Try to place SHARK
     for (const sType of sharkTypes) {
       if (supply[cpuColor][sType] > 0) {
-        for (let i=0; i<30; i++) {
-          const randCell = board[Math.floor(Math.random() * board.length)];
-          const randRot = Math.floor(Math.random() * 6);
-          if (randCell.owner === cpuColor || (randCell.type && randCell.type.includes('shark'))) continue;
-          const mouths = getActiveMouths(sType, randRot);
-          let eaten = 0;
-          if (randCell.type === PIECE_TYPES.FISH && randCell.owner === opponent) eaten++;
-          const neighbors = getNeighbors(randCell.q, randCell.r);
-          mouths.forEach(dirIdx => {
-            const nC = neighbors[dirIdx];
-            const nCell = board.find(c => c.q === nC.q && c.r === nC.r);
-            if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
-          });
+        for (const cell of shuffledBoard) {
+          if (cell.owner === cpuColor || (cell.type && cell.type.includes('shark'))) continue;
 
-            if (eaten > 0) {
-              executeAIMoveAction({ type: 'shark', q: randCell.q, r: randCell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
-              return;
-            }
-        }
-      }
-    }
+          // Try all 6 rotations
+          const rotations = [0, 1, 2, 3, 4, 5].sort(() => Math.random() - 0.5);
+          for (const rot of rotations) {
+            const mouths = getActiveMouths(sType, rot);
+            let eaten = 0;
+            if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
 
-    if (supply[cpuColor].fish >= 2) {
-      const emptyCells = board.filter(c => !c.type);
-      if (emptyCells.length > 0) {
-        for (let i=0; i<20; i++) {
-          const c1 = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-          const ns = getNeighbors(c1.q, c1.r);
-          const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
-          if (validNeighbors.length > 0) {
-            const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
-            executeAIMoveAction({ type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r });
-            return;
+            const neighbors = getNeighbors(cell.q, cell.r);
+            mouths.forEach(dirIdx => {
+              const nC = neighbors[dirIdx];
+              const nCell = board.find(c => c.q === nC.q && c.r === nC.r);
+              if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
+            });
+
+              if (eaten > 0) {
+                executeAIMoveAction({ type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
+                return;
+              }
           }
         }
       }
     }
+
+    // 2. Try to place FISH
+    if (supply[cpuColor].fish >= 2) {
+      const emptyCells = shuffledBoard.filter(c => !c.type);
+      for (const c1 of emptyCells) {
+        const ns = getNeighbors(c1.q, c1.r);
+        const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
+        if (validNeighbors.length > 0) {
+          const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+          executeAIMoveAction({ type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r });
+          return;
+        }
+      }
+    }
+
+    console.log("AI stuck: No moves found.");
   };
 
   const executeAIMoveAction = (move) => {
