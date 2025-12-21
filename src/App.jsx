@@ -4,12 +4,32 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
-// --- CONFIGURACIÓ FIREBASE ---
-const firebaseConfig = JSON.parse(__firebase_config);
+// --- CONFIGURACIÓ FIREBASE (PROTEGIDA) ---
+// Si l'executes en local o Render, has de substituir aquest bloc per la teva config real.
+let firebaseConfig;
+let appId = 'default-app-id';
+
+try {
+  // Intenta llegir la configuració de l'entorn del xat
+  firebaseConfig = JSON.parse(__firebase_config);
+  appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+} catch (e) {
+  // FALLBACK PER A LOCAL/RENDER SI NO HAS POSAT LES CLAUS
+  // Això evita la pantalla blanca, però l'online no funcionarà fins que posis les teves dades.
+  console.warn("⚠️ No s'ha trobat configuració Firebase. Usant valors de mostra (l'online fallarà).");
+  firebaseConfig = {
+    apiKey: "DEMO_KEY_REPLACE_WITH_YOURS",
+    authDomain: "demo.firebaseapp.com",
+    projectId: "demo-project",
+    storageBucket: "demo.appspot.com",
+    messagingSenderId: "000000000000",
+    appId: "1:000000000000:web:0000000000000000000000"
+  };
+}
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 // --- ICONA PERSONALITZADA: TAURÓ ---
 const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
@@ -20,25 +40,22 @@ const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="no
   </svg>
 );
 
-// --- COMPONENT NOU: INDICADOR DE BOQUES (PUNTS) ---
+// --- COMPONENT RECUPERAT: INDICADOR DE BOQUES ---
 const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
-  // Coordenades relatives per a un viewBox 0 0 24 24
-  // Centre 12,12. Radi ~8.
-  // Angles: 0 (top), 60, 120, 180...
   const points = [];
 
   if (type === PIECE_TYPES.SHARK_SMALL) {
-    points.push({ cx: 12, cy: 4 }); // Top
+    points.push({ cx: 12, cy: 4 });
   } else if (type === PIECE_TYPES.SHARK_BIG_60) {
-    points.push({ cx: 12, cy: 4 }); // Top
-    points.push({ cx: 19, cy: 8 }); // Top-Right (60)
+    points.push({ cx: 12, cy: 4 });
+    points.push({ cx: 19, cy: 8 });
   } else if (type === PIECE_TYPES.SHARK_BIG_120) {
-    points.push({ cx: 12, cy: 4 }); // Top
-    points.push({ cx: 19, cy: 16 }); // Bottom-Right (120)
+    points.push({ cx: 12, cy: 4 });
+    points.push({ cx: 19, cy: 16 });
   } else if (type === PIECE_TYPES.SHARK_BIG_180) {
-    points.push({ cx: 12, cy: 4 }); // Top
-    points.push({ cx: 12, cy: 20 }); // Bottom (180)
-  } else if (type === 'GENERIC_BIG') { // Per al supply board general
+    points.push({ cx: 12, cy: 4 });
+    points.push({ cx: 12, cy: 20 });
+  } else if (type === 'GENERIC_BIG') {
     points.push({ cx: 12, cy: 4 });
     points.push({ cx: 12, cy: 20 });
   }
@@ -47,7 +64,7 @@ const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
     <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
     <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
     {points.map((p, i) => (
-      <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" /> // Rose-500
+      <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />
     ))}
     </svg>
   );
@@ -325,10 +342,14 @@ export default function XokGameHex() {
   // 1. INIT AUTH
   useEffect(() => {
     const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
-        await signInAnonymously(auth);
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch(e) {
+        console.warn("Auth failed (expected in local/demo)", e);
       }
     };
     initAuth();
@@ -354,11 +375,11 @@ export default function XokGameHex() {
       }
     }, (error) => console.error("Error sync:", error));
     return () => unsubscribe();
-  }, [user, roomId, isLocal]);
+  }, [user, roomId, isLocal, turn]); // Added turn dep to catch external updates
 
   // --- FUNCIONS DE SALA ---
   const createRoom = async () => {
-    if (!user) return;
+    if (!user) { alert("Error d'autenticació"); return; }
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
     const initialState = {
@@ -378,7 +399,7 @@ export default function XokGameHex() {
   };
 
   const joinRoom = async () => {
-    if (!user || !inputRoomId) return;
+    if (!user || !inputRoomId) { alert("Error d'autenticació o ID buit"); return; }
     const cleanId = inputRoomId.toUpperCase().trim();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', cleanId);
     const snap = await getDoc(roomRef);
