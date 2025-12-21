@@ -5,25 +5,16 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- CONFIGURACIÓ FIREBASE (PROTEGIDA) ---
-// Si l'executes en local o Render, has de substituir aquest bloc per la teva config real.
 let firebaseConfig;
 let appId = 'default-app-id';
 
 try {
-  // Intenta llegir la configuració de l'entorn del xat
   firebaseConfig = JSON.parse(__firebase_config);
   appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 } catch (e) {
-  // FALLBACK PER A LOCAL/RENDER SI NO HAS POSAT LES CLAUS
-  // Això evita la pantalla blanca, però l'online no funcionarà fins que posis les teves dades.
-  console.warn("⚠️ No s'ha trobat configuració Firebase. Usant valors de mostra (l'online fallarà).");
+  console.warn("⚠️ Mode local/demo (sense Firebase keys reals).");
   firebaseConfig = {
-    apiKey: "DEMO_KEY_REPLACE_WITH_YOURS",
-    authDomain: "demo.firebaseapp.com",
-    projectId: "demo-project",
-    storageBucket: "demo.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "1:000000000000:web:0000000000000000000000"
+    apiKey: "DEMO", authDomain: "demo", projectId: "demo", storageBucket: "demo", messagingSenderId: "0", appId: "0"
   };
 }
 
@@ -40,48 +31,26 @@ const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="no
   </svg>
 );
 
-// --- COMPONENT RECUPERAT: INDICADOR DE BOQUES ---
+// --- COMPONENT: INDICADOR DE BOQUES ---
 const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
   const points = [];
-
-  if (type === PIECE_TYPES.SHARK_SMALL) {
-    points.push({ cx: 12, cy: 4 });
-  } else if (type === PIECE_TYPES.SHARK_BIG_60) {
-    points.push({ cx: 12, cy: 4 });
-    points.push({ cx: 19, cy: 8 });
-  } else if (type === PIECE_TYPES.SHARK_BIG_120) {
-    points.push({ cx: 12, cy: 4 });
-    points.push({ cx: 19, cy: 16 });
-  } else if (type === PIECE_TYPES.SHARK_BIG_180) {
-    points.push({ cx: 12, cy: 4 });
-    points.push({ cx: 12, cy: 20 });
-  } else if (type === 'GENERIC_BIG') {
-    points.push({ cx: 12, cy: 4 });
-    points.push({ cx: 12, cy: 20 });
-  }
+  if (type === 'shark_small') { points.push({ cx: 12, cy: 4 }); }
+  else if (type === 'shark_big_60') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
+  else if (type === 'shark_big_120') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
+  else if (type === 'shark_big_180') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
 
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
     <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
-    {points.map((p, i) => (
-      <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />
-    ))}
+    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
     </svg>
   );
 };
 
-// --- FONS MARÍ MINIMALISTA ---
+// --- FONS MARÍ MINIMALISTA (sense onades) ---
 const MarinePattern = () => (
-  <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden">
-  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-  <pattern id="waves" x="0" y="0" width="120" height="80" patternUnits="userSpaceOnUse">
-  <path d="M0 40 Q 30 20, 60 40 T 120 40" fill="none" stroke="#0f172a" strokeWidth="1.5" opacity="0.15"/>
-  <path d="M0 60 Q 30 40, 60 60 T 120 60" fill="none" stroke="#0f172a" strokeWidth="1" opacity="0.1"/>
-  </pattern>
-  </defs>
-  <rect width="100%" height="100%" fill="url(#waves)" />
-  </svg>
+  <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden bg-cyan-900">
   <div className="absolute inset-0 bg-radial-gradient from-transparent to-cyan-950 opacity-40"></div>
   </div>
 );
@@ -133,7 +102,9 @@ const TRANSLATIONS = {
     you_are: "Ets el jugador",
     err_full: "Sala plena o no existeix.", err_auth: "Error d'autenticació.",
     local_mode_badge: "MODE LOCAL", online_mode_badge: "EN LÍNIA",
-    tap_confirm: "Clica de nou per confirmar"
+    tap_confirm: "Clica de nou per confirmar",
+    instr_fish_1: "Col·loca el primer peix",
+    instr_fish_2: "Col·loca el segon peix"
   },
   en: {
     title: "XOK", edition: "Digital Edition", turn: "Turn", white: "WHITE", black: "BLACK",
@@ -150,7 +121,9 @@ const TRANSLATIONS = {
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
     local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE",
-    tap_confirm: "Tap again to confirm"
+    tap_confirm: "Tap again to confirm",
+    instr_fish_1: "Place the first fish",
+    instr_fish_2: "Place the second fish"
   },
   es: {
     title: "XOK", edition: "Edición Digital", turn: "Turno", white: "BLANCO", black: "NEGRO",
@@ -167,7 +140,9 @@ const TRANSLATIONS = {
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
     local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA",
-    tap_confirm: "Pulsa de nuevo para confirmar"
+    tap_confirm: "Pulsa de nuevo para confirmar",
+    instr_fish_1: "Coloca el primer pez",
+    instr_fish_2: "Coloca el segundo pez"
   }
 };
 
@@ -252,7 +227,6 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
   const rotate = (direction) => setSharkSelection(prev => ({ ...prev, rotation: direction === 'cw' ? (prev.rotation + 1) % 6 : (prev.rotation + 5) % 6 }));
   const currentType = sharkSelection.type;
   const count = supply[turn][currentType];
-
   const btnCls = (type) => {
     const num = supply[turn][type];
     const isActive = currentType === type;
@@ -281,11 +255,7 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
     </button>
     </div>
     <div className="flex items-center justify-between mb-4">
-    {/* Left Button: Action CCW, Icon RotateCw (Swapped image) */}
-    <button onClick={() => rotate('ccw')} className="w-12 h-12 p-2 bg-white rounded-full border border-slate-200 hover:bg-teal-50 text-slate-500 hover:text-teal-600 shadow-sm transition-all active:scale-95 flex items-center justify-center">
-    <RotateCw size={24} strokeWidth={2.5}/>
-    </button>
-
+    <button onClick={() => rotate('ccw')} className="w-12 h-12 p-2 bg-white rounded-full border border-slate-200 hover:bg-teal-50 text-slate-500 hover:text-teal-600 shadow-sm transition-all active:scale-95 flex items-center justify-center"><RotateCw size={24} strokeWidth={2.5}/></button>
     <div className="relative w-24 h-24">
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><SharkIcon size={24} color="#64748b" /></div>
     {[0, 1, 2, 3, 4, 5].map(dir => {
@@ -294,11 +264,7 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
       return <div key={dir} style={{ left: x, top: y }} className={`absolute w-3 h-3 rounded-full border transition-all ${currentMouths.includes(dir) ? 'bg-rose-500 border-rose-600 scale-125 shadow-sm' : 'bg-slate-200 border-slate-300'}`} />
     })}
     </div>
-
-    {/* Right Button: Action CW, Icon RotateCcw (Swapped image) */}
-    <button onClick={() => rotate('cw')} className="w-12 h-12 p-2 bg-white rounded-full border border-slate-200 hover:bg-teal-50 text-slate-500 hover:text-teal-600 shadow-sm transition-all active:scale-95 flex items-center justify-center">
-    <RotateCcw size={24} strokeWidth={2.5}/>
-    </button>
+    <button onClick={() => rotate('cw')} className="w-12 h-12 p-2 bg-white rounded-full border border-slate-200 hover:bg-teal-50 text-slate-500 hover:text-teal-600 shadow-sm transition-all active:scale-95 flex items-center justify-center"><RotateCcw size={24} strokeWidth={2.5}/></button>
     </div>
     <div className="pt-3 border-t border-slate-200 text-center">
     <div className="text-[10px] uppercase font-bold text-slate-400 mb-2">{t('supply')}</div>
@@ -310,7 +276,6 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
 
 // --- APP PRINCIPAL ---
 export default function XokGameHex() {
-  // --- ESTATS FIREBASE / MULTIJUGADOR ---
   const [user, setUser] = useState(null);
   const [roomId, setRoomId] = useState(null);
   const [playerColor, setPlayerColor] = useState(null);
@@ -318,7 +283,6 @@ export default function XokGameHex() {
   const [isLocal, setIsLocal] = useState(false);
   const [inputRoomId, setInputRoomId] = useState('');
 
-  // --- ESTATS DE JOC ---
   const [board, setBoard] = useState(generateBoardCells);
   const [turn, setTurn] = useState(PLAYERS.WHITE);
   const [supply, setSupply] = useState(JSON.parse(JSON.stringify(INITIAL_SUPPLY)));
@@ -326,11 +290,10 @@ export default function XokGameHex() {
   const [winReason, setWinReason] = useState('');
   const [gameLog, setGameLog] = useState(["Benvingut a XOK!"]);
 
-  // --- ESTATS UI ---
   const [phase, setPhase] = useState('SELECT_ACTION');
   const [selectedAction, setSelectedAction] = useState(null);
   const [tempMove, setTempMove] = useState({});
-  const [confirmMove, setConfirmMove] = useState(null); // { q, r } per confirmar
+  const [confirmMove, setConfirmMove] = useState(null);
   const [aiState, setAiState] = useState({ loading: false, response: null, type: null });
   const [hoverCell, setHoverCell] = useState(null);
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
@@ -339,25 +302,13 @@ export default function XokGameHex() {
 
   const t = (key) => TRANSLATIONS[lang][key] || key;
 
-  // 1. INIT AUTH
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch(e) {
-        console.warn("Auth failed (expected in local/demo)", e);
-      }
-    };
+    const initAuth = async () => { try { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } } catch(e) { console.warn("Auth failed", e); } };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
 
-  // 2. ROOM SYNC
   useEffect(() => {
     if (!user || !roomId || isLocal) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
@@ -370,32 +321,19 @@ export default function XokGameHex() {
         setWinner(data.winner);
         setWinReason(data.winReason);
         if (data.logs) setGameLog(data.logs);
-        // Si canvia el torn, reset confirm
         if (data.turn !== turn) setConfirmMove(null);
       }
     }, (error) => console.error("Error sync:", error));
     return () => unsubscribe();
-  }, [user, roomId, isLocal, turn]); // Added turn dep to catch external updates
+  }, [user, roomId, isLocal, turn]);
 
-  // --- FUNCIONS DE SALA ---
   const createRoom = async () => {
     if (!user) { alert("Error d'autenticació"); return; }
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
-    const initialState = {
-      board: JSON.stringify(generateBoardCells()),
-      turn: PLAYERS.WHITE,
-      supply: INITIAL_SUPPLY,
-      winner: null,
-      winReason: '',
-      logs: [t('log_welcome')],
-      createdAt: new Date().toISOString()
-    };
+    const initialState = { board: JSON.stringify(generateBoardCells()), turn: PLAYERS.WHITE, supply: INITIAL_SUPPLY, winner: null, winReason: '', logs: [t('log_welcome')], createdAt: new Date().toISOString() };
     await setDoc(roomRef, initialState);
-    setRoomId(newRoomId);
-    setPlayerColor(PLAYERS.WHITE);
-    setIsLocal(false);
-    setIsJoined(true);
+    setRoomId(newRoomId); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsJoined(true);
   };
 
   const joinRoom = async () => {
@@ -403,42 +341,19 @@ export default function XokGameHex() {
     const cleanId = inputRoomId.toUpperCase().trim();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', cleanId);
     const snap = await getDoc(roomRef);
-    if (snap.exists()) {
-      setRoomId(cleanId);
-      setPlayerColor(PLAYERS.BLACK);
-      setIsLocal(false);
-      setIsJoined(true);
-    } else {
-      alert(t('err_full'));
-    }
+    if (snap.exists()) { setRoomId(cleanId); setPlayerColor(PLAYERS.BLACK); setIsLocal(false); setIsJoined(true); } else { alert(t('err_full')); }
   };
 
-  const startLocalGame = () => {
-    setRoomId(null); setPlayerColor(null); setIsLocal(true); setIsJoined(true);
-    setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE);
-    setGameLog([t('log_welcome')]);
-  };
-
-  const exitLobby = () => {
-    setIsJoined(false); setRoomId(null); setIsLocal(false); setWinner(null);
-    setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY)));
-  };
+  const startLocalGame = () => { setRoomId(null); setPlayerColor(null); setIsLocal(true); setIsJoined(true); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]); };
+  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); };
 
   const updateGameState = async (newBoard, newSupply, nextTurn, newLogs, newWinner = null, newReason = '') => {
-    if (isLocal) {
-      setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs);
-      if (newWinner) { setWinner(newWinner); setWinReason(newReason); }
-      return;
-    }
+    if (isLocal) { setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs); if (newWinner) { setWinner(newWinner); setWinReason(newReason); } return; }
     if (!roomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
-    await updateDoc(roomRef, {
-      board: JSON.stringify(newBoard), supply: newSupply, turn: nextTurn, logs: newLogs,
-                    winner: newWinner, winReason: newReason
-    });
+    await updateDoc(roomRef, { board: JSON.stringify(newBoard), supply: newSupply, turn: nextTurn, logs: newLogs, winner: newWinner, winReason: newReason });
   };
 
-  // --- LÒGICA DE JOC ---
   const calculateChains = useCallback((currentBoard) => {
     const visited = new Set();
     const cellMap = new Map();
@@ -451,22 +366,12 @@ export default function XokGameHex() {
         const {q, r} = stack.pop();
         const cell = cellMap.get(`${q},${r}`);
         if(cell && (cell.type === PIECE_TYPES.FISH || cell.type.includes('shark'))) size++;
-        getNeighbors(q, r).forEach(n => {
-          const key = `${n.q},${n.r}`;
-          const nCell = cellMap.get(key);
-          if(nCell && nCell.owner === player && !seen.has(key)) { seen.add(key); stack.push(n); }
-        });
+        getNeighbors(q, r).forEach(n => { const key = `${n.q},${n.r}`; const nCell = cellMap.get(key); if(nCell && nCell.owner === player && !seen.has(key)) { seen.add(key); stack.push(n); } });
       }
       return size;
     };
     let maxChains = { [PLAYERS.WHITE]: 0, [PLAYERS.BLACK]: 0 };
-    currentBoard.forEach(cell => {
-      if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) {
-        const size = getChainSize(cell.q, cell.r, cell.owner);
-        if(size > maxChains[cell.owner]) maxChains[cell.owner] = size;
-        visited.add(`${cell.q},${cell.r}`);
-      }
-    });
+    currentBoard.forEach(cell => { if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) { const size = getChainSize(cell.q, cell.r, cell.owner); if(size > maxChains[cell.owner]) maxChains[cell.owner] = size; visited.add(`${cell.q},${cell.r}`); } });
     return maxChains;
   }, []);
 
@@ -506,27 +411,16 @@ export default function XokGameHex() {
     return impacted;
   };
   const impactedCells = useMemo(() => {
-    // Use confirmMove coordinates if exists, otherwise hover
     const target = confirmMove || hoverCell;
     return (target && selectedAction === 'shark') ? getImpactedCells(target.q, target.r) : [];
   }, [confirmMove, hoverCell, selectedAction, currentMouths, board, turn]);
 
-  // --- EXECUCIÓ DE TORNS ---
   const endTurnDB = async (newBoard, newSupply) => {
     const winResult = checkWinLocal(newBoard);
     const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
     const logMsg = `${turn === 'white' ? t('white') : t('black')} ha mogut.`;
     const newLogs = [logMsg, ...gameLog].slice(0, 5);
-
-    await updateGameState(
-      newBoard,
-      newSupply,
-      nextPlayer,
-      newLogs,
-      winResult ? winResult.winner : null,
-      winResult ? winResult.reason : ''
-    );
-
+    await updateGameState(newBoard, newSupply, nextPlayer, newLogs, winResult ? winResult.winner : null, winResult ? winResult.reason : '');
     setPhase('SELECT_ACTION'); setSelectedAction(null); setTempMove({}); setConfirmMove(null);
     const nextSupply = newSupply[nextPlayer];
     setSharkSelection({ type: nextSupply.shark_small > 0 ? PIECE_TYPES.SHARK_SMALL : (nextSupply.shark_big_60 > 0 ? PIECE_TYPES.SHARK_BIG_60 : (nextSupply.shark_big_120 > 0 ? PIECE_TYPES.SHARK_BIG_120 : PIECE_TYPES.SHARK_BIG_180)), rotation: 0 });
@@ -535,43 +429,22 @@ export default function XokGameHex() {
   const handleCellClick = (cell) => {
     if (winner || !cell) return;
     if (!isLocal && turn !== playerColor) return;
-
     const { q, r } = cell;
-
-    // --- LÒGICA DE CONFIRMACIÓ ---
 
     if (selectedAction === 'shark' || phase === 'PLACING_FISH_2') {
       if (!confirmMove || confirmMove.q !== q || confirmMove.r !== r) {
-        // Validar abans de seleccionar si és possible
         let valid = false;
-        if (selectedAction === 'shark') {
-          valid = !(cell.owner === turn || (cell.type && cell.type.includes('shark')));
-        } else if (phase === 'PLACING_FISH_2') {
-          const neighbors = getNeighbors(tempMove.q1, tempMove.r1);
-          valid = !cell.type && neighbors.some(n => n.q === q && n.r === r);
-        }
-
-        if (valid) {
-          setConfirmMove({ q, r });
-        } else if (selectedAction === 'shark') {
-          addLog(t('log_shark_invalid'));
-        } else {
-          addLog(t('log_fish_adj'));
-        }
-        return; // Esperem confirmació
+        if (selectedAction === 'shark') { valid = !(cell.owner === turn || (cell.type && cell.type.includes('shark'))); }
+        else if (phase === 'PLACING_FISH_2') { const neighbors = getNeighbors(tempMove.q1, tempMove.r1); valid = !cell.type && neighbors.some(n => n.q === q && n.r === r); }
+        if (valid) { setConfirmMove({ q, r }); } else if (selectedAction === 'shark') { addLog(t('log_shark_invalid')); } else { addLog(t('log_fish_adj')); }
+        return;
       }
     }
 
-    // SI ARRIBEM AQUÍ, ÉS QUE HEM CLICAT LA MATEIXA CE·LLA -> EXECUTAR
-
     if (selectedAction === 'fish') {
       if (supply[turn].fish < 2) return;
-      if (phase === 'PLACING_FISH_1') {
-        if (cell.type) return;
-        setTempMove({ q1: q, r1: r });
-        setPhase('PLACING_FISH_2');
-      } else if (phase === 'PLACING_FISH_2') {
-        // Ejecutar Fish 2 (Ja sabem que és vàlid per la lògica de confirmació anterior)
+      if (phase === 'PLACING_FISH_1') { if (cell.type) return; setTempMove({ q1: q, r1: r }); setPhase('PLACING_FISH_2'); }
+      else if (phase === 'PLACING_FISH_2') {
         const newBoard = board.map(c => ((c.q === tempMove.q1 && c.r === tempMove.r1) || (c.q === q && c.r === r)) ? { ...c, type: PIECE_TYPES.FISH, owner: turn } : c);
         const newSupply = { ...supply, [turn]: { ...supply[turn], fish: supply[turn].fish - 2 } };
         endTurnDB(newBoard, newSupply);
@@ -581,19 +454,12 @@ export default function XokGameHex() {
     if (selectedAction === 'shark') {
       const sharkType = sharkSelection.type;
       if (supply[turn][sharkType] <= 0) return;
-
       const fishToEatIndices = getImpactedCells(q, r).map(ic => board.findIndex(c => c.q === ic.q && c.r === ic.r));
       if (fishToEatIndices.length === 0) { addLog(t('log_shark_must_eat')); return; }
-
       const newBoard = board.map(c => ({...c}));
       const newSupply = JSON.parse(JSON.stringify(supply));
       const targetCellIndex = newBoard.findIndex(c => c.q === q && c.r === r);
-
-      fishToEatIndices.forEach(idx => {
-        const c = newBoard[idx];
-        newSupply[c.owner].fish += 1;
-        if (c.q !== q || c.r !== r) { newBoard[idx].type = null; newBoard[idx].owner = null; }
-      });
+      fishToEatIndices.forEach(idx => { const c = newBoard[idx]; newSupply[c.owner].fish += 1; if (c.q !== q || c.r !== r) { newBoard[idx].type = null; newBoard[idx].owner = null; } });
       newBoard[targetCellIndex].type = sharkType;
       newBoard[targetCellIndex].owner = turn;
       newBoard[targetCellIndex].mouths = currentMouths;
@@ -602,59 +468,26 @@ export default function XokGameHex() {
     }
   };
 
-  const handleActionChange = (action) => {
-    setSelectedAction(action);
-    setPhase(action === 'fish' ? 'PLACING_FISH_1' : 'SELECT_ACTION');
-    setTempMove({});
-    setConfirmMove(null); // Netejar confirmació en canviar d'eina
-  };
+  const handleActionChange = (action) => { setSelectedAction(action); setPhase(action === 'fish' ? 'PLACING_FISH_1' : 'SELECT_ACTION'); setTempMove({}); setConfirmMove(null); };
 
   const renderCell = (cell) => {
     const { x, y } = hexToPixel(cell.q, cell.r);
     const centerX = 0; const centerY = -270;
-
-    // Estat de confirmació té prioritat sobre hover
     const isConfirmedPos = confirmMove && confirmMove.q === cell.q && confirmMove.r === cell.r;
     const isHovered = !isConfirmedPos && hoverCell && hoverCell.q === cell.q && hoverCell.r === cell.r;
-
     let isHighlight = false, isValidTarget = false, isImpacted = false, showGhostShark = false, showGhostFish = false;
 
-    // Logic peixos
     if (turn === playerColor || isLocal) {
       if (selectedAction === 'fish') {
         if (phase === 'PLACING_FISH_1' && !cell.type) isValidTarget = true;
         if (phase === 'PLACING_FISH_2') {
-          // Highlight first selection
           if (tempMove.q1 === cell.q && tempMove.r1 === cell.r) isHighlight = true;
-
-          // Logic for second fish
-          if (!cell.type) {
-            const ns = getNeighbors(tempMove.q1, tempMove.r1);
-            if (ns.some(n => n.q === cell.q && n.r === cell.r)) {
-              isValidTarget = true;
-              // Show ghost if confirming or hovering this cell
-              if (isConfirmedPos || isHovered) showGhostFish = true;
-            }
-          }
+          if (!cell.type) { const ns = getNeighbors(tempMove.q1, tempMove.r1); if (ns.some(n => n.q === cell.q && n.r === cell.r)) { isValidTarget = true; if (isConfirmedPos || isHovered) showGhostFish = true; } }
         }
       }
       if (selectedAction === 'shark') {
         const canPlaceShark = !cell.owner || (cell.owner !== turn && (!cell.type || !cell.type.includes('shark')));
-        if (canPlaceShark) isValidTarget = true;
-
-        // Show preview if confirmed pos or hover
-        if ((isConfirmedPos || isHovered) && canPlaceShark) {
-          showGhostShark = true;
-          // Calculate impacts for this specific cell (either confirmed or hovered)
-          const targetCells = getImpactedCells(cell.q, cell.r);
-          if (targetCells.length > 0) {
-            // Aquesta cel·la genera impactes, però els impactes són altres cel·les.
-            // La lògica global 'impactedCells' gestiona el highlight vermell de les altres.
-          }
-        }
-
-        // Highlight vermell si algú (hover o confirm) m'està apuntant a mi
-        // 'impactedCells' es calcula basant-se en 'confirmMove' O 'hoverCell' al useMemo principal
+        if (canPlaceShark) { isValidTarget = true; if ((isConfirmedPos || isHovered)) showGhostShark = true; }
         if (impactedCells.some(ic => ic.q === cell.q && ic.r === cell.r)) isImpacted = true;
       }
     }
@@ -667,41 +500,22 @@ export default function XokGameHex() {
       <div key={`${cell.q},${cell.r}`} onClick={() => handleCellClick(cell)} onMouseEnter={() => setHoverCell(cell)} onMouseLeave={() => setHoverCell(null)}
       style={{ position: 'absolute', left: `calc(50% + ${x + centerX}px)`, top: `calc(50% + ${y + centerY}px)`, width: `${HEX_WIDTH}px`, height: `${HEX_HEIGHT}px`, marginLeft: `-${HEX_WIDTH/2}px`, marginTop: `-${HEX_HEIGHT/2}px`, clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", zIndex: isConfirmedPos ? 50 : 10, cursor: (isLocal || turn === playerColor) ? 'pointer' : 'default' }}
       className={`flex items-center justify-center transition-all duration-200 ${isImpacted ? 'bg-rose-500/80 animate-pulse border-rose-600 border-2' : ''} ${!isImpacted && isValidTarget && !isConfirmedPos ? 'bg-teal-400 hover:bg-teal-300' : ''} ${!isImpacted && !isValidTarget ? 'bg-white/20 hover:bg-white/30' : ''} ${isHighlight ? 'bg-teal-500' : ''} ${!isValidTarget && !isHighlight && !isImpacted && !isConfirmedPos ? 'backdrop-blur-[1px]' : ''} ${isConfirmedPos ? 'bg-teal-200 ring-4 ring-teal-400 z-50 scale-105' : ''}`}>
-
-      {/* Pieces */}
       {cell.type === PIECE_TYPES.FISH && <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center shadow-md ${isImpacted ? 'opacity-50 grayscale' : ''}`}><Fish className={pieceColor} size={26} strokeWidth={2.5} /></div>}
       {cell.type && cell.type.includes('shark') && <div className={`w-14 h-14 rounded-xl ${bgColor} flex items-center justify-center relative shadow-lg`}><SharkIcon color={isWhite ? "#0f172a" : "#ffffff"} size={32} />{cell.mouths.map((m, i) => <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500 border-y-[7px] border-y-transparent"></div></div>)}</div>}
-
-      {/* Ghost Shark */}
       {showGhostShark && <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-60 z-20"><div className={`w-14 h-14 rounded-xl ${turn === PLAYERS.WHITE ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600'} border-2 flex items-center justify-center relative shadow-lg`}><SharkIcon color={turn === PLAYERS.WHITE ? "#0f172a" : "#ffffff"} size={32} />{currentMouths.map((m, i) => <div key={i} className="absolute w-full h-full" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500/70 border-y-[7px] border-y-transparent"></div></div>)}</div></div>}
-
-      {/* Ghost Fish (2nd placement) */}
       {showGhostFish && <Fish className="text-teal-300 animate-pulse w-10 h-10 z-20 pointer-events-none" />}
       {phase === 'PLACING_FISH_2' && tempMove.q1 === cell.q && tempMove.r1 === cell.r && <Fish className="text-teal-300 animate-pulse w-10 h-10" />}
-
-      {/* Confirmation Overlay Button (Small floating bubble - centered top) */}
-      {isConfirmedPos && (
-        <div className="absolute z-50 left-1/2 -translate-x-1/2 -mt-1 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg animate-in fade-in zoom-in duration-200 ring-2 ring-white hover:scale-110 cursor-pointer" style={{ top: '20%' }}>
-        <Check size={14} strokeWidth={4} />
-        </div>
-      )}
+      {isConfirmedPos && <div className="absolute z-50 inset-0 m-auto w-10 h-10 bg-green-500/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg animate-in fade-in zoom-in duration-200 ring-2 ring-green-400 hover:bg-green-500/40 cursor-pointer" style={{ marginTop: '0' }}><Check size={20} strokeWidth={4} className="text-green-600" /></div>}
       </div>
     );
   };
 
-  // ... (rest of Lobby and Main UI structure remains similar)
-
-  // --- LOBBY SCREEN ---
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <MarinePattern />
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-300 relative">
-      <div className="absolute top-4 right-4 flex gap-2">
-      <button onClick={() => setLang('ca')} className={`text-xs font-bold px-1 ${lang==='ca' ? 'text-teal-600 underline' : 'text-slate-400'}`}>CA</button>
-      <button onClick={() => setLang('en')} className={`text-xs font-bold px-1 ${lang==='en' ? 'text-teal-600 underline' : 'text-slate-400'}`}>EN</button>
-      <button onClick={() => setLang('es')} className={`text-xs font-bold px-1 ${lang==='es' ? 'text-teal-600 underline' : 'text-slate-400'}`}>ES</button>
-      </div>
+      <div className="absolute top-4 right-4 flex gap-2"><button onClick={() => setLang('ca')} className={`text-xs font-bold px-1 ${lang==='ca' ? 'text-teal-600 underline' : 'text-slate-400'}`}>CA</button><button onClick={() => setLang('en')} className={`text-xs font-bold px-1 ${lang==='en' ? 'text-teal-600 underline' : 'text-slate-400'}`}>EN</button><button onClick={() => setLang('es')} className={`text-xs font-bold px-1 ${lang==='es' ? 'text-teal-600 underline' : 'text-slate-400'}`}>ES</button></div>
       <div className="flex justify-center mb-6"><div className="p-4 bg-teal-100 rounded-full"><SharkIcon size={48} color="#0d9488" /></div></div>
       <h1 className="text-4xl font-black text-center text-slate-800 mb-2">XOK</h1>
       <p className="text-center text-slate-500 mb-8">{t('edition')}</p>
@@ -716,17 +530,12 @@ export default function XokGameHex() {
     );
   }
 
-  // --- MAIN GAME UI ---
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col md:flex-row overflow-hidden">
-    {/* SIDEBAR */}
     <div className="w-full md:w-80 bg-white shadow-xl flex flex-col z-20 border-r border-slate-200">
     <div className="p-6 border-b border-slate-100 bg-white flex flex-col gap-4">
     <div className="flex items-center justify-between">
-    <div className="flex items-center gap-3">
-    <div className="bg-teal-600 p-2 rounded-lg text-white shadow-lg"><SharkIcon size={24} color="white" /></div>
-    <div><h1 className="text-2xl font-black text-slate-900 leading-none">XOK</h1><span className="text-[10px] font-bold text-slate-400 tracking-wider">{isLocal ? t('local_mode_badge') : t('online_mode_badge')}</span></div>
-    </div>
+    <div className="flex items-center gap-3"><div className="bg-teal-600 p-2 rounded-lg text-white shadow-lg"><SharkIcon size={24} color="white" /></div><div><h1 className="text-2xl font-black text-slate-900 leading-none">XOK</h1><span className="text-[10px] font-bold text-slate-400 tracking-wider">{isLocal ? t('local_mode_badge') : t('online_mode_badge')}</span></div></div>
     <button onClick={exitLobby} className="text-xs font-bold text-slate-400 hover:text-red-500 flex flex-col items-center"><X size={16}/> {t('exit_lobby')}</button>
     </div>
     {!isLocal && (<div className="bg-slate-100 p-3 rounded-xl flex items-center justify-between border border-slate-200"><div className="flex items-center gap-2 text-xs text-slate-500 font-bold"><Users size={14}/> ID: <span className="font-mono text-slate-800 text-sm select-all">{roomId}</span></div><button onClick={() => {navigator.clipboard.writeText(roomId); alert("ID Copiat!")}} className="p-1 hover:bg-white rounded"><Copy size={14} className="text-slate-400"/></button></div>)}
