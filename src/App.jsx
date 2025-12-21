@@ -1,41 +1,43 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw } from 'lucide-react';
+import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // ******************************************************************************************
-// *** CONFIGURACIÓ FIREBASE - EDITA AQUESTA SECCIÓ PER A GITHUB/RENDER ***
+// *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
 // ******************************************************************************************
 
-let firebaseConfig;
-let appId = 'xok-webapp-v1'; // Pots canviar aquest nom si vols
+const MY_FIREBASE_CONFIG = {
+  // Substitueix els textos entre cometes per les teves dades reals de la consola de Firebase
+  apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
+  authDomain: "xok-webapp.firebaseapp.com",
+  projectId: "xok-webapp",
+  storageBucket: "xok-webapp.firebasestorage.app",
+  messagingSenderId: "568536806614",
+  appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
+  measurementId: "G-2YB656ZKPN"
+};
 
-// Comprovació d'entorn
-if (typeof __firebase_config !== 'undefined') {
-  // 1. Entorn de previsualització del xat (NO TOCAR AQUESTA PART)
-  firebaseConfig = JSON.parse(__firebase_config);
-  appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-} else {
-  // 2. ENTORN LOCAL / RENDER (POSA LES TEVES DADES REALS AQUÍ DINS)
-  // Copia les claus de la consola de Firebase i enganxa-les aquí:
+const MY_APP_ID = 'xok-webapp'; // Pots deixar-ho així o canviar-ho
 
-  firebaseConfig = {
-    apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
-    authDomain: "xok-webapp.firebaseapp.com",
-    projectId: "xok-webapp",
-    storageBucket: "xok-webapp.firebasestorage.app",
-    messagingSenderId: "568536806614",
-    appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
-    measurementId: "G-2YB656ZKPN"
-  };
+// ******************************************************************************************
+// *** FI DE LA ZONA D'EDICIÓ - NO TOQUIS RES MÉS A PARTIR D'AQUÍ ***
+// ******************************************************************************************
+
+// Lògica per triar la configuració correcta (Xat vs Producció)
+const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
+const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
+
+// Inicialització de Firebase
+let app, auth, db;
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (error) {
+  console.error("Error inicialitzant Firebase. Revisa la configuració.", error);
 }
-
-// ******************************************************************************************
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
 
 // --- ICONA PERSONALITZADA: TAURÓ ---
 const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
@@ -125,6 +127,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
     you_are: "Ets el jugador",
     err_full: "Sala plena o no existeix.", err_auth: "Error d'autenticació.",
+    err_create: "Error creant la sala. Revisa la connexió o les regles de Firebase.",
     local_mode_badge: "MODE LOCAL", online_mode_badge: "EN LÍNIA",
     tap_confirm: "Clica de nou per confirmar",
     instr_fish_1: "Col·loca el primer peix",
@@ -144,6 +147,7 @@ const TRANSLATIONS = {
     config_shark: "Shark Config", rotate_hint: "Click direction",
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
+    err_create: "Error creating room. Check connection or Firebase rules.",
     local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE",
     tap_confirm: "Tap again to confirm",
     instr_fish_1: "Place the first fish",
@@ -163,6 +167,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
+    err_create: "Error creando sala. Revisa conexión o reglas Firebase.",
     local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA",
     tap_confirm: "Pulsa de nuevo para confirmar",
     instr_fish_1: "Coloca el primer pez",
@@ -307,6 +312,7 @@ export default function XokGameHex() {
   const [isJoined, setIsJoined] = useState(false);
   const [isLocal, setIsLocal] = useState(false);
   const [inputRoomId, setInputRoomId] = useState('');
+  const [creatingRoom, setCreatingRoom] = useState(false); // ESTAT DE CÀRREGA PER CREAR SALA
 
   const [board, setBoard] = useState(generateBoardCells);
   const [turn, setTurn] = useState(PLAYERS.WHITE);
@@ -352,13 +358,37 @@ export default function XokGameHex() {
     return () => unsubscribe();
   }, [user, roomId, isLocal, turn]);
 
+  // --- CREAR SALA (Amb gestió d'errors i loading) ---
   const createRoom = async () => {
-    if (!user) { alert("Error d'autenticació"); return; }
-    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
-    const initialState = { board: JSON.stringify(generateBoardCells()), turn: PLAYERS.WHITE, supply: INITIAL_SUPPLY, winner: null, winReason: '', logs: [t('log_welcome')], createdAt: new Date().toISOString() };
-    await setDoc(roomRef, initialState);
-    setRoomId(newRoomId); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsJoined(true);
+    if (!user) { alert(t('err_auth')); return; }
+
+    setCreatingRoom(true);
+    try {
+      const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // Nota: Assegura't que el 'appId' coincideix amb la ruta permesa a les teves Regles de Firestore
+      const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
+
+      const initialState = {
+        board: JSON.stringify(generateBoardCells()),
+        turn: PLAYERS.WHITE,
+        supply: INITIAL_SUPPLY,
+        winner: null,
+        winReason: '',
+        logs: [t('log_welcome')],
+        createdAt: new Date().toISOString()
+      };
+
+      await setDoc(roomRef, initialState);
+      setRoomId(newRoomId);
+      setPlayerColor(PLAYERS.WHITE);
+      setIsLocal(false);
+      setIsJoined(true);
+    } catch (error) {
+      console.error("Error creant sala:", error);
+      alert(t('err_create') + "\n" + error.message);
+    } finally {
+      setCreatingRoom(false);
+    }
   };
 
   const joinRoom = async () => {
@@ -547,7 +577,9 @@ export default function XokGameHex() {
       <div className="space-y-3">
       <Button onClick={startLocalGame} className="w-full py-4 text-lg shadow-teal-500/30 bg-indigo-600 hover:bg-indigo-700 gap-3"><Monitor size={20}/> {t('lobby_local')}</Button>
       <div className="relative py-2"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-400">{t('lobby_online_divider')}</span></div></div>
-      <Button onClick={createRoom} className="w-full py-3 gap-3" variant="secondary"><Users size={20}/> {t('lobby_create')}</Button>
+      <Button onClick={createRoom} disabled={creatingRoom} className="w-full py-3 gap-3" variant="secondary">
+      {creatingRoom ? <><span className="animate-spin">⏳</span> Creant...</> : <><Users size={20}/> {t('lobby_create')}</>}
+      </Button>
       <div className="flex gap-2"><input type="text" placeholder={t('lobby_id_ph')} className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none font-mono uppercase text-center" value={inputRoomId} onChange={(e) => setInputRoomId(e.target.value)} /><Button onClick={joinRoom} variant="outline">{t('lobby_enter')}</Button></div>
       </div>
       </div>
