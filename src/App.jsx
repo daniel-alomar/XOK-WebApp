@@ -4,29 +4,34 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
-// --- CONFIGURACIÓ FIREBASE (PROTEGIDA) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
-  authDomain: "xok-webapp.firebaseapp.com",
-  projectId: "xok-webapp",
-  storageBucket: "xok-webapp.firebasestorage.app",
-  messagingSenderId: "568536806614",
-  appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
-  measurementId: "G-2YB656ZKPN"
-};
-const appId = 'xok-webapp';
-let firebaseConfig;
-let appId = 'default-app-id';
+// ******************************************************************************************
+// *** CONFIGURACIÓ FIREBASE - EDITA AQUESTA SECCIÓ PER A GITHUB/RENDER ***
+// ******************************************************************************************
 
-try {
+let firebaseConfig;
+let appId = 'xok-webapp-v1'; // Pots canviar aquest nom si vols
+
+// Comprovació d'entorn
+if (typeof __firebase_config !== 'undefined') {
+  // 1. Entorn de previsualització del xat (NO TOCAR AQUESTA PART)
   firebaseConfig = JSON.parse(__firebase_config);
   appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-} catch (e) {
-  console.warn("⚠️ Mode local/demo (sense Firebase keys reals).");
+} else {
+  // 2. ENTORN LOCAL / RENDER (POSA LES TEVES DADES REALS AQUÍ DINS)
+  // Copia les claus de la consola de Firebase i enganxa-les aquí:
+
   firebaseConfig = {
-    apiKey: "DEMO", authDomain: "demo", projectId: "demo", storageBucket: "demo", messagingSenderId: "0", appId: "0"
+    apiKey: "AIzaSyC6uaOH6pRttEAWbWKQr3rU_w-jrKWh7ac",
+    authDomain: "xok-webapp.firebaseapp.com",
+    projectId: "xok-webapp",
+    storageBucket: "xok-webapp.firebasestorage.app",
+    messagingSenderId: "568536806614",
+    appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
+    measurementId: "G-2YB656ZKPN"
   };
 }
+
+// ******************************************************************************************
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -44,10 +49,10 @@ const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="no
 // --- COMPONENT: INDICADOR DE BOQUES ---
 const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
   const points = [];
-  if (type === 'shark_small') { points.push({ cx: 12, cy: 4 }); }
-  else if (type === 'shark_big_60') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
-  else if (type === 'shark_big_120') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
-  else if (type === 'shark_big_180') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
   else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
 
   return (
@@ -58,9 +63,18 @@ const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
   );
 };
 
-// --- FONS MARÍ MINIMALISTA (sense onades) ---
+// --- FONS MARÍ MINIMALISTA ---
 const MarinePattern = () => (
-  <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden bg-cyan-900">
+  <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden">
+  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <pattern id="waves" x="0" y="0" width="120" height="80" patternUnits="userSpaceOnUse">
+  <path d="M0 40 Q 30 20, 60 40 T 120 40" fill="none" stroke="#0f172a" strokeWidth="1.5" opacity="0.15"/>
+  <path d="M0 60 Q 30 40, 60 60 T 120 60" fill="none" stroke="#0f172a" strokeWidth="1" opacity="0.1"/>
+  </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#waves)" />
+  </svg>
   <div className="absolute inset-0 bg-radial-gradient from-transparent to-cyan-950 opacity-40"></div>
   </div>
 );
@@ -237,6 +251,7 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
   const rotate = (direction) => setSharkSelection(prev => ({ ...prev, rotation: direction === 'cw' ? (prev.rotation + 1) % 6 : (prev.rotation + 5) % 6 }));
   const currentType = sharkSelection.type;
   const count = supply[turn][currentType];
+
   const btnCls = (type) => {
     const num = supply[turn][type];
     const isActive = currentType === type;
