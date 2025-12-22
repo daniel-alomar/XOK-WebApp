@@ -103,7 +103,7 @@ const TRANSLATIONS = {
     lobby_local: "Jugar en local (passa i juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
-    game_over: "FINAL", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú",
+    game_over: "FINAL", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú", view_board: "Veure Taulell",
     log_welcome: "Benvingut!", log_turn: "Torn de",
     win_reason: "Cadena de 10 peces!",
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
@@ -135,7 +135,7 @@ const TRANSLATIONS = {
     lobby_local: "Play Local (Pass & Play)", lobby_ai: "Play vs CPU (AI)",
     lobby_waiting: "Waiting for opponent...", lobby_share: "Share code:",
     lobby_online_divider: "ONLINE",
-    game_over: "GAME OVER", win_msg: "WINS!", play_again: "Play Again", exit_lobby: "Exit to Menu",
+    game_over: "GAME OVER", win_msg: "WINS!", play_again: "Play Again", exit_lobby: "Exit to Menu", view_board: "View Board",
     log_welcome: "Welcome!", log_turn: "Turn of",
     win_reason: "Chain of 10 pieces!",
     config_shark: "Shark Config", rotate_hint: "Click direction",
@@ -167,7 +167,7 @@ const TRANSLATIONS = {
     lobby_local: "Jugar en Local (Pasa y Juega)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperando oponente...", lobby_share: "Comparte este código:",
     lobby_online_divider: "EN LÍNEA",
-    game_over: "FINAL", win_msg: "GANA!", play_again: "Jugar de nuevo", exit_lobby: "Salir al Menú",
+    game_over: "FINAL", win_msg: "GANA!", play_again: "Jugar de nuevo", exit_lobby: "Salir al Menú", view_board: "Ver Tablero",
     log_welcome: "¡Bienvenido!", log_turn: "Turno de",
     win_reason: "¡Cadena de 10 piezas!",
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
@@ -240,6 +240,7 @@ const AIResponseBox = ({ loading, response, type, onClose }) => {
 };
 
 // --- SUBCOMPONENTS ---
+
 const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
   <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
   <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.WHITE ? 'bg-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
@@ -273,7 +274,6 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
   const rotate = (direction) => setSharkSelection(prev => ({ ...prev, rotation: direction === 'cw' ? (prev.rotation + 1) % 6 : (prev.rotation + 5) % 6 }));
   const currentType = sharkSelection.type;
   const count = supply[turn][currentType];
-
   const btnCls = (type) => {
     const num = supply[turn][type];
     const isActive = currentType === type;
@@ -337,6 +337,7 @@ export default function XokGameHex() {
   const [supply, setSupply] = useState(JSON.parse(JSON.stringify(INITIAL_SUPPLY)));
   const [winner, setWinner] = useState(null);
   const [winReason, setWinReason] = useState('');
+  const [winningCells, setWinningCells] = useState([]); // NEW: Store winning chain
   const [gameLog, setGameLog] = useState(["Benvingut a XOK!"]);
 
   const [phase, setPhase] = useState('SELECT_ACTION');
@@ -348,6 +349,7 @@ export default function XokGameHex() {
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
   const [boardScale, setBoardScale] = useState(1);
   const [showRules, setShowRules] = useState(false);
+  const [viewingEndGame, setViewingEndGame] = useState(false); // NEW: View board state after win
 
   const getBrowserLang = () => {
     const navLang = navigator.language || navigator.userLanguage;
@@ -392,6 +394,7 @@ export default function XokGameHex() {
         setSupply(data.supply);
         setWinner(data.winner);
         setWinReason(data.winReason);
+        if (data.winningCells) setWinningCells(JSON.parse(data.winningCells)); // Sync winning cells
         if (data.logs) setGameLog(data.logs);
         if (data.turn !== turn) setConfirmMove(null);
       }
@@ -401,43 +404,90 @@ export default function XokGameHex() {
 
   // --- FUNCIONS DEL JOC I IA ---
 
+  // Improved to return winning cells
   const calculateChains = useCallback((currentBoard) => {
     const visited = new Set();
     const cellMap = new Map();
     currentBoard.forEach(c => cellMap.set(`${c.q},${c.r}`, c));
-    const getChainSize = (startQ, startR, player) => {
+
+    // DFS to get connected components
+    const getComponent = (startQ, startR, player) => {
       const stack = [{q: startQ, r: startR}];
+      const componentCells = [`${startQ},${startR}`];
       const seen = new Set([`${startQ},${startR}`]);
       let size = 0;
+
       while(stack.length){
         const {q, r} = stack.pop();
         const cell = cellMap.get(`${q},${r}`);
         if(cell && (cell.type === PIECE_TYPES.FISH || cell.type.includes('shark'))) size++;
-        getNeighbors(q, r).forEach(n => { const key = `${n.q},${n.r}`; const nCell = cellMap.get(key); if(nCell && nCell.owner === player && !seen.has(key)) { seen.add(key); stack.push(n); } });
+
+        getNeighbors(q, r).forEach(n => {
+          const key = `${n.q},${n.r}`;
+          const nCell = cellMap.get(key);
+          if(nCell && nCell.owner === player && !seen.has(key)) {
+            seen.add(key);
+            componentCells.push(key);
+            stack.push(n);
+          }
+        });
       }
-      return size;
+      return { size, cells: componentCells };
     };
+
     let maxChains = { [PLAYERS.WHITE]: 0, [PLAYERS.BLACK]: 0 };
-    currentBoard.forEach(cell => { if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) { const size = getChainSize(cell.q, cell.r, cell.owner); if(size > maxChains[cell.owner]) maxChains[cell.owner] = size; visited.add(`${cell.q},${cell.r}`); } });
-    return maxChains;
+    let winCells = [];
+
+    currentBoard.forEach(cell => {
+      if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) {
+        const { size, cells } = getComponent(cell.q, cell.r, cell.owner);
+        if(size > maxChains[cell.owner]) maxChains[cell.owner] = size;
+
+        // Mark visited
+        cells.forEach(k => visited.add(k));
+
+        if (size >= WINNING_CHAIN) {
+          winCells = cells; // Capture winning chain
+        }
+      }
+    });
+
+    // Convert key strings back to objects for highlighting if needed immediately
+    return { maxChains, winCells };
   }, []);
 
-  const chainLengths = useMemo(() => calculateChains(board), [board, calculateChains]);
+  const chainLengths = useMemo(() => calculateChains(board).maxChains, [board, calculateChains]);
 
   const checkWinLocal = (currentBoard) => {
-    const maxChains = calculateChains(currentBoard);
-    if (maxChains[turn] >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason') };
-    if (maxChains[turn === 'white' ? 'black' : 'white'] >= WINNING_CHAIN) return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason') };
+    const { maxChains, winCells } = calculateChains(currentBoard);
+    if (maxChains[turn] >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason'), winningCells: winCells };
+    if (maxChains[turn === 'white' ? 'black' : 'white'] >= WINNING_CHAIN) return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason'), winningCells: winCells };
     return null;
   };
 
   const addLog = (msg) => setGameLog(prev => [msg, ...prev].slice(0, 5));
 
-  const updateGameState = async (newBoard, newSupply, nextTurn, newLogs, newWinner = null, newReason = '') => {
-    if (isLocal || isAI) { setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs); if (newWinner) { setWinner(newWinner); setWinReason(newReason); } return; }
+  const updateGameState = async (newBoard, newSupply, nextTurn, newLogs, newWinner = null, newReason = '', winCells = []) => {
+    if (isLocal || isAI) {
+      setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs);
+      if (newWinner) {
+        setWinner(newWinner);
+        setWinReason(newReason);
+        setWinningCells(winCells); // Set local state for highlight
+      }
+      return;
+    }
     if (!roomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
-    await updateDoc(roomRef, { board: JSON.stringify(newBoard), supply: newSupply, turn: nextTurn, logs: newLogs, winner: newWinner, winReason: newReason });
+    await updateDoc(roomRef, {
+      board: JSON.stringify(newBoard),
+                    supply: newSupply,
+                    turn: nextTurn,
+                    logs: newLogs,
+                    winner: newWinner,
+                    winReason: newReason,
+                    winningCells: JSON.stringify(winCells) // Sync to DB
+    });
   };
 
   const getActiveMouths = useCallback((type, rotation) => {
@@ -471,12 +521,23 @@ export default function XokGameHex() {
     return (target && selectedAction === 'shark') ? getImpactedCells(target.q, target.r) : [];
   }, [confirmMove, hoverCell, selectedAction, currentMouths, board, turn]);
 
+  // Defined here to be used by AI logic
   const endTurnDB = async (newBoard, newSupply) => {
     const winResult = checkWinLocal(newBoard);
     const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
     const logMsg = `${turn === 'white' ? t('white') : t('black')} ha mogut.`;
     const newLogs = [logMsg, ...gameLog].slice(0, 5);
-    await updateGameState(newBoard, newSupply, nextPlayer, newLogs, winResult ? winResult.winner : null, winResult ? winResult.reason : '');
+
+    await updateGameState(
+      newBoard,
+      newSupply,
+      nextPlayer,
+      newLogs,
+      winResult ? winResult.winner : null,
+      winResult ? winResult.reason : '',
+      winResult ? winResult.winningCells : []
+    );
+
     setPhase('SELECT_ACTION'); setSelectedAction(null); setTempMove({}); setConfirmMove(null);
     const nextSupply = newSupply[nextPlayer];
     setSharkSelection({ type: nextSupply.shark_small > 0 ? PIECE_TYPES.SHARK_SMALL : (nextSupply.shark_big_60 > 0 ? PIECE_TYPES.SHARK_BIG_60 : (nextSupply.shark_big_120 > 0 ? PIECE_TYPES.SHARK_BIG_120 : PIECE_TYPES.SHARK_BIG_180)), rotation: 0 });
@@ -524,18 +585,21 @@ export default function XokGameHex() {
     const cpuColor = PLAYERS.BLACK;
     const opponent = PLAYERS.WHITE;
     const opponentChain = chainLengths[opponent];
+    const myChain = chainLengths[cpuColor];
 
     const shuffledBoard = [...board].sort(() => Math.random() - 0.5);
     const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
     sharkTypes.sort(() => Math.random() - 0.5);
 
-    // STRATEGY LOGIC
-    let useShark = false;
-    if (opponentChain >= 8) useShark = true; // Emergency
-    else if (opponentChain >= 5) useShark = Math.random() > 0.5; // Probabilistic
-    else useShark = false; // Early game, save sharks
+    // --- IMPROVED STRATEGY LOGIC ---
 
-    if (useShark) {
+    // 1. DETERMINE URGENCY
+    const isEmergency = opponentChain >= 7; // Opponent close to winning
+    const isOpportunity = myChain >= 8; // I am close to winning
+
+    // 2. SHARK EVALUATION FUNCTION
+    // Returns a move if good, else null
+    const evaluateSharkMove = (minEaten = 1, criticalOnly = false) => {
       for (const sType of sharkTypes) {
         if (supply[cpuColor][sType] > 0) {
           for (const cell of shuffledBoard) {
@@ -545,6 +609,8 @@ export default function XokGameHex() {
             for (const rot of rotations) {
               const mouths = getActiveMouths(sType, rot);
               let eaten = 0;
+
+              // Simulate eat
               if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
               const neighbors = getNeighbors(cell.q, cell.r);
               mouths.forEach(dirIdx => {
@@ -553,25 +619,43 @@ export default function XokGameHex() {
                 if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
               });
 
-                // Strict eating: If very dangerous, eat even 1. Else prefer 2.
-                if (eaten >= 2 || (eaten >= 1 && opponentChain >= 7)) {
-                  executeAIMoveAction({ type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
-                  return;
+                // Strategic filtering
+                if (eaten >= minEaten) {
+                  // If critical mode, ensure we are eating from the big chain (heuristic: adjacency)
+                  if (criticalOnly) {
+                    // Simplified check: is any eaten fish neighbor to another opponent fish?
+                    // (Assuming bigger chain implies connectivity)
+                    return { type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten };
+                  }
+                  return { type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten };
                 }
             }
           }
         }
       }
+      return null;
+    };
+
+    // 3. DECISION TREE
+    let bestMove = null;
+
+    // A. EMERGENCY: Opponent about to win. Must eat 1+ fish to break chain.
+    if (isEmergency) {
+      bestMove = evaluateSharkMove(1, true); // Try to eat anything
     }
 
-    // 2. Try to place FISH (Smart placement)
-    if (supply[cpuColor].fish >= 2) {
+    // B. ATTACK: If can eat 2+ fish (Great value), do it.
+    // Only if we have supply and opponent isn't tiny
+    if (!bestMove && opponentChain >= 3) {
+      bestMove = evaluateSharkMove(2, false);
+    }
+
+    // C. BUILD: If no good attack, try to build chain with fish.
+    if (!bestMove && supply[cpuColor].fish >= 2) {
       const emptyCells = shuffledBoard.filter(c => !c.type);
-      // Prioritize: Neighbors of my pieces > Neighbors of opponent pieces > Random
 
+      // Smart Placement: Adjacent to own pieces
       const myPieces = board.filter(c => c.owner === cpuColor);
-      const oppPieces = board.filter(c => c.owner === opponent);
-
       const getEmptyNeighbors = (pieces) => {
         const targets = new Set();
         pieces.forEach(p => {
@@ -583,58 +667,38 @@ export default function XokGameHex() {
         return Array.from(targets);
       };
 
-      const myNeighbors = getEmptyNeighbors(myPieces);
-      const oppNeighbors = getEmptyNeighbors(oppPieces);
+      let candidates = [];
+      if (myPieces.length > 0) candidates = getEmptyNeighbors(myPieces);
+      if (candidates.length < 2) candidates = emptyCells; // Fallback to random if no neighbors
 
-      // Combine candidates: Prefer cells that are neighbors to BOTH (Attack+Defense)
-      let candidates = myNeighbors.filter(c => oppNeighbors.includes(c));
-      if (candidates.length === 0) candidates = [...myNeighbors, ...oppNeighbors];
-      if (candidates.length === 0) candidates = emptyCells;
-
-      // Shuffle candidates to avoid repetitive patterns
-      candidates.sort(() => Math.random() - 0.5);
-
+      // Try to find a pair
       for (const c1 of candidates) {
         const ns = getNeighbors(c1.q, c1.r);
+        // Prefer neighbor that is also empty (adjacency required)
+        // And ideally neighbor that is also neighbor to own piece (closing gaps)
         const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
+
         if (validNeighbors.length > 0) {
+          // Pick random valid neighbor
           const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
-          executeAIMoveAction({ type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r });
-          return;
+          bestMove = { type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r };
+          break;
         }
       }
     }
 
-    // Fallback: If no fish move or forced to use shark by lack of fish
-    if (supply[cpuColor].fish < 2) {
-      // Try finding ANY shark move
-      for (const sType of sharkTypes) {
-        if (supply[cpuColor][sType] > 0) {
-          // ... same search logic but accept eaten >= 1 always
-          for (const cell of shuffledBoard) {
-            if (cell.owner === cpuColor || (cell.type && cell.type.includes('shark'))) continue;
-            const rotations = [0, 1, 2, 3, 4, 5];
-            for (const rot of rotations) {
-              const mouths = getActiveMouths(sType, rot);
-              let eaten = 0;
-              if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
-              const neighbors = getNeighbors(cell.q, cell.r);
-              mouths.forEach(dirIdx => {
-                const nC = neighbors[dirIdx];
-                const nCell = board.find(c => c.q === nC.q && c.r === nC.r);
-                if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
-              });
-                if (eaten > 0) {
-                  executeAIMoveAction({ type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
-                  return;
-                }
-            }
-          }
-        }
-      }
+    // D. LAST RESORT: Use shark to eat 1 if can't place fish or nothing else to do
+    if (!bestMove) {
+      bestMove = evaluateSharkMove(1, false);
     }
 
-    console.log("AI stuck: No moves found.");
+    // EXECUTE
+    if (bestMove) {
+      executeAIMoveAction(bestMove);
+    } else {
+      console.log("AI Stuck/Pass");
+      // In real game, this might be game over condition
+    }
   };
 
   useEffect(() => {
@@ -674,10 +738,12 @@ export default function XokGameHex() {
     setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]);
   };
 
-  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); };
+  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); setViewingEndGame(false); };
 
   const handleCellClick = (cell) => {
-    if (winner || !cell) return;
+    if (winner && !viewingEndGame) return; // Block clicks if game over unless viewing mode (though viewing mode usually static)
+    if (winner) return; // No moves after win
+
     if (!isLocal && !isAI && turn !== playerColor) return;
     if (isAI && turn === PLAYERS.BLACK) return;
 
@@ -687,7 +753,7 @@ export default function XokGameHex() {
       if (!confirmMove || confirmMove.q !== q || confirmMove.r !== r) {
         let valid = false;
         if (selectedAction === 'shark') { valid = !(cell.owner === turn || (cell.type && cell.type.includes('shark'))); }
-        else if (phase === 'PLACING_FISH_2') { const neighbors = getNeighbors(tempMove.q1, tempMove.r1); valid = !cell.type && neighbors.some(n => n.q === q && n.r === r); }
+        else if (phase === 'PLACING_FISH_2') { const neighbors = getNeighbors(tempMove.q1, tempMove.r1); valid = !cell.type && neighbors.some(n => n.q === cell.q && n.r === r); }
         if (valid) { setConfirmMove({ q, r }); } else if (selectedAction === 'shark') { addLog(t('log_shark_invalid')); } else { addLog(t('log_fish_adj')); }
         return;
       }
@@ -729,7 +795,10 @@ export default function XokGameHex() {
     const isHovered = !isConfirmedPos && hoverCell && hoverCell.q === cell.q && hoverCell.r === cell.r;
     let isHighlight = false, isValidTarget = false, isImpacted = false, showGhostShark = false, showGhostFish = false;
 
-    if (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE)) {
+    // WINNING CHAIN HIGHLIGHT
+    const isWinningPiece = winner && winningCells.includes(`${cell.q},${cell.r}`);
+
+    if (!winner && (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE))) {
       if (selectedAction === 'fish') {
         if (phase === 'PLACING_FISH_1' && !cell.type) isValidTarget = true;
         if (phase === 'PLACING_FISH_2') {
@@ -748,10 +817,13 @@ export default function XokGameHex() {
     const pieceColor = isWhite ? 'text-slate-900' : 'text-white';
     const bgColor = isWhite ? 'bg-white border-2 border-slate-200' : 'bg-slate-900 border-2 border-slate-700';
 
+    // Winning style
+    const winClass = isWinningPiece ? 'bg-emerald-500 border-emerald-300 ring-2 ring-emerald-400 z-50' : '';
+
     return (
       <div key={`${cell.q},${cell.r}`} onClick={() => handleCellClick(cell)} onMouseEnter={() => setHoverCell(cell)} onMouseLeave={() => setHoverCell(null)}
-      style={{ position: 'absolute', left: `calc(50% + ${x + centerX}px)`, top: `calc(50% + ${y + centerY}px)`, width: `${HEX_WIDTH}px`, height: `${HEX_HEIGHT}px`, marginLeft: `-${HEX_WIDTH/2}px`, marginTop: `-${HEX_HEIGHT/2}px`, clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", zIndex: isConfirmedPos ? 50 : 10, cursor: (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE)) ? 'pointer' : 'default' }}
-      className={`flex items-center justify-center transition-all duration-200 ${isImpacted ? 'bg-rose-500/80 animate-pulse border-rose-600 border-2' : ''} ${!isImpacted && isValidTarget && !isConfirmedPos ? 'bg-teal-400 hover:bg-teal-300' : ''} ${!isImpacted && !isValidTarget ? 'bg-white/20 hover:bg-white/30' : ''} ${isHighlight ? 'bg-teal-500' : ''} ${!isValidTarget && !isHighlight && !isImpacted && !isConfirmedPos ? 'backdrop-blur-[1px]' : ''} ${isConfirmedPos ? 'bg-teal-200 ring-4 ring-teal-400 z-50 scale-105' : ''}`}>
+      style={{ position: 'absolute', left: `calc(50% + ${x + centerX}px)`, top: `calc(50% + ${y + centerY}px)`, width: `${HEX_WIDTH}px`, height: `${HEX_HEIGHT}px`, marginLeft: `-${HEX_WIDTH/2}px`, marginTop: `-${HEX_HEIGHT/2}px`, clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", zIndex: isConfirmedPos || isWinningPiece ? 50 : 10, cursor: (!winner && (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE))) ? 'pointer' : 'default' }}
+      className={`flex items-center justify-center transition-all duration-200 ${winClass} ${isImpacted ? 'bg-rose-500/80 animate-pulse border-rose-600 border-2' : ''} ${!isImpacted && !isWinningPiece && isValidTarget && !isConfirmedPos ? 'bg-teal-400 hover:bg-teal-300' : ''} ${!isImpacted && !isWinningPiece && !isValidTarget ? 'bg-white/20 hover:bg-white/30' : ''} ${isHighlight ? 'bg-teal-500' : ''} ${!isValidTarget && !isHighlight && !isImpacted && !isConfirmedPos && !isWinningPiece ? 'backdrop-blur-[1px]' : ''} ${isConfirmedPos ? 'bg-teal-200 ring-4 ring-teal-400 z-50 scale-105' : ''}`}>
       {cell.type === PIECE_TYPES.FISH && <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center shadow-md ${isImpacted ? 'opacity-50 grayscale' : ''}`}><Fish className={pieceColor} size={26} strokeWidth={2.5} /></div>}
       {cell.type && cell.type.includes('shark') && <div className={`w-14 h-14 rounded-xl ${bgColor} flex items-center justify-center relative shadow-lg`}><SharkIcon color={isWhite ? "#0f172a" : "#ffffff"} size={32} />{cell.mouths.map((m, i) => <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500 border-y-[7px] border-y-transparent"></div></div>)}</div>}
       {showGhostShark && <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-60 z-20"><div className={`w-14 h-14 rounded-xl ${turn === PLAYERS.WHITE ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600'} border-2 flex items-center justify-center relative shadow-lg`}><SharkIcon color={turn === PLAYERS.WHITE ? "#0f172a" : "#ffffff"} size={32} />{currentMouths.map((m, i) => <div key={i} className="absolute w-full h-full" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500/70 border-y-[7px] border-y-transparent"></div></div>)}</div></div>}
@@ -816,7 +888,23 @@ export default function XokGameHex() {
     <div className="p-3 bg-slate-50 border-t border-slate-200 h-24 overflow-y-auto font-mono text-[10px] text-slate-500">{gameLog.map((l, i) => <div key={i} className="mb-1 border-b border-slate-100 pb-1 last:border-0">› {l}</div>)}</div>
     </div>
     <div className="flex-1 bg-cyan-900 overflow-hidden relative"><div className="absolute inset-0 flex items-center justify-center"><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
-    {winner && <Modal title={t('game_over')} onClose={exitLobby}><div className="text-center py-4"><Trophy size={48} className="mx-auto text-yellow-500 mb-4 animate-bounce" /><h2 className="text-4xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</h2><div className="bg-teal-50 text-teal-800 px-4 py-2 rounded-lg font-bold">{winReason}</div><Button onClick={exitLobby} className="w-full mt-6">{t('exit_lobby')}</Button></div></Modal>}
+
+    {/* GAME OVER MODAL (Conditional render) */}
+    {winner && !viewingEndGame && (
+      <Modal title={t('game_over')} onClose={exitLobby}>
+      <div className="text-center py-4">
+      <Trophy size={48} className="mx-auto text-yellow-500 mb-4 animate-bounce" />
+      <h2 className="text-4xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</h2>
+      <div className="bg-teal-50 text-teal-800 px-4 py-2 rounded-lg font-bold mb-6">{winReason}</div>
+      <div className="flex gap-2">
+      <Button onClick={() => setViewingEndGame(true)} className="flex-1" variant="outline"><Eye size={16}/> {t('view_board')}</Button>
+      <Button onClick={exitLobby} className="flex-1">{t('exit_lobby')}</Button>
+      </div>
+      </div>
+      </Modal>
+    )}
+
+    {/* RULES MODAL */}
     {showRules && <Modal title={t('rules_title')} onClose={() => setShowRules(false)}>
     <div className="space-y-4 text-slate-600 text-sm">
     <p className="bg-slate-50 p-3 rounded-lg border border-slate-200">{t('rules_goal')}</p>
