@@ -24,18 +24,16 @@ const MY_APP_ID = 'xok-webapp';
 // *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-// Lògica per triar la configuració correcta
 const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
 const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
 
-// Inicialització de Firebase
 let app, auth, db;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (error) {
-  console.error("Error inicialitzant Firebase. Revisa la configuració.", error);
+  console.error("Error inicialitzant Firebase.", error);
 }
 
 // --- ICONA PERSONALITZADA: TAURÓ ---
@@ -116,7 +114,18 @@ const TRANSLATIONS = {
     tap_confirm: "Clica de nou per confirmar",
     instr_fish_1: "Col·loca el primer peix",
     instr_fish_2: "Col·loca el segon peix",
-    ai_thinking: "La CPU està pensant..."
+    ai_thinking: "La CPU està pensant...",
+    rules_title: "Com Jugar a XOK",
+    rules_goal: "Connecta 10 peces del teu color (peixos o taurons) en una cadena contínua per guanyar.",
+    rules_action1_title: "Acció 1: Jugar 2 Peixos",
+    rules_action1_desc: "Col·loca 2 peixos de la teva reserva en dues caselles buides adjacents qualsevol.",
+    rules_action2_title: "Acció 2: Jugar 1 Tauró",
+    rules_action2_desc: "Col·loca un tauró en una casella buida O sobre un peix de l'oponent.",
+    rules_shark_eat: "Important: El tauró HA DE menjar almenys un peix enemic. Menja el peix que té a sota i els que assenyalen les seves boques. Els peixos menjats tornen a la reserva del rival.",
+    rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 boques amb angles fixos: 60°, 120°, 180°).",
+    rules_links_title: "Enllaços d'interès",
+    link_bgg: "Veure a BoardGameGeek",
+    link_publisher: "Web oficial (Steffen Spiele)"
   },
   en: {
     title: "XOK", edition: "Digital Edition", turn: "Turn", white: "WHITE", black: "BLACK",
@@ -137,14 +146,25 @@ const TRANSLATIONS = {
     tap_confirm: "Tap again to confirm",
     instr_fish_1: "Place the first fish",
     instr_fish_2: "Place the second fish",
-    ai_thinking: "CPU is thinking..."
+    ai_thinking: "CPU is thinking...",
+    rules_title: "How to Play XOK",
+    rules_goal: "Connect 10 pieces of your color (fish or sharks) in a continuous chain to win.",
+    rules_action1_title: "Action 1: Play 2 Fish",
+    rules_action1_desc: "Place 2 fish from your supply on any two adjacent empty spaces.",
+    rules_action2_title: "Action 2: Play 1 Shark",
+    rules_action2_desc: "Place a shark on an empty space OR on top of an opponent's fish.",
+    rules_shark_eat: "Important: The shark MUST eat at least one enemy fish. It eats the fish underneath and any fish pointed to by its mouths. Eaten fish return to the opponent's supply.",
+    rules_shark_types: "Types: Small Sharks (1 mouth) and Big Sharks (2 mouths with fixed angles: 60°, 120°, 180°).",
+    rules_links_title: "Useful Links",
+    link_bgg: "View on BoardGameGeek",
+    link_publisher: "Official Website (Steffen Spiele)"
   },
   es: {
     title: "XOK", edition: "Edición Digital", turn: "Turno", white: "BLANCO", black: "NEGRO",
     actions: "Acciones", rules: "Reglas", supply: "Disponibles", chain: "Cadena",
     fish_btn: "2 Peces", fish_sub: "Adyacentes", shark_btn: "1 Tiburón", shark_sub: "Come enemigo",
     lobby_create: "Crear Sala En Línea", lobby_join: "Unirse a Sala", lobby_id_ph: "Código de sala...", lobby_enter: "Entrar",
-    lobby_local: "Jugar en Local (Pasa y Juega)", lobby_ai: "Jugar vs CPU (IA)",
+    lobby_local: "Jugar en local (pasa y juega)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperando oponente...", lobby_share: "Comparte este código:",
     lobby_online_divider: "EN LÍNEA",
     game_over: "FINAL", win_msg: "GANA!", play_again: "Jugar de nuevo", exit_lobby: "Salir al Menú",
@@ -158,7 +178,18 @@ const TRANSLATIONS = {
     tap_confirm: "Pulsa de nuevo para confirmar",
     instr_fish_1: "Coloca el primer pez",
     instr_fish_2: "Coloca el segundo pez",
-    ai_thinking: "La CPU está pensando..."
+    ai_thinking: "La CPU está pensando...",
+    rules_title: "Cómo Jugar a XOK",
+    rules_goal: "Conecta 10 piezas de tu color (peces o tiburones) en una cadena continua para ganar.",
+    rules_action1_title: "Acción 1: Jugar 2 Peces",
+    rules_action1_desc: "Coloca 2 peces de tu reserva en dos casillas vacías adyacentes cualquiera.",
+    rules_action2_title: "Acción 2: Jugar 1 Tiburón",
+    rules_action2_desc: "Coloca un tiburón en una casilla vacía O sobre un pez del oponente.",
+    rules_shark_eat: "Importante: El tiburón DEBE comer al menos un pez enemigo. Come el pez de abajo y los señalados por sus bocas. Los peces comidos vuelven a la reserva del rival.",
+    rules_shark_types: "Tipos: Tiburones Pequeños (1 boca) y Grandes (2 bocas con ángulos fijos: 60°, 120°, 180°).",
+    rules_links_title: "Enlaces de interés",
+    link_bgg: "Ver en BoardGameGeek",
+    link_publisher: "Web oficial (Steffen Spiele)"
   }
 };
 
@@ -213,7 +244,7 @@ const AIResponseBox = ({ loading, response, type, onClose }) => {
 const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
   <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
   <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.WHITE ? 'bg-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
-  <div className="font-black text-slate-800 text-sm mb-2 flex items-center justify-center gap-1">{t('white')} {(playerColor === PLAYERS.WHITE && !isLocal) || isAI ? " (TU)" : ""}</div>
+  <div className="font-black text-slate-800 text-sm mb-2 flex items-center justify-center gap-1">{t('white')} {(playerColor === PLAYERS.WHITE && !isLocal) || (isAI && playerColor === PLAYERS.WHITE) ? " (TU)" : ""}</div>
   <div className="flex flex-col gap-1 text-xs mb-2 items-center">
   <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.white.fish}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-500"/> <b>{supply.white.shark_small}</b></div>
@@ -368,70 +399,88 @@ export default function XokGameHex() {
     return () => unsubscribe();
   }, [user, roomId, isLocal, isAI, turn]);
 
-  // AI TURN LOGIC
-  useEffect(() => {
-    if (isAI && turn === PLAYERS.BLACK && !winner) {
-      const timer = setTimeout(() => {
-        makeAIMove();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isAI, turn, winner]);
+  // --- FUNCIONS DEL JOC I IA ---
 
-  // ROBUST AI MOVE GENERATOR
-  const makeAIMove = () => {
-    const cpuColor = PLAYERS.BLACK;
-    const opponent = PLAYERS.WHITE;
-
-    // Shuffle board for randomness
-    const shuffledBoard = [...board].sort(() => Math.random() - 0.5);
-    const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
-    sharkTypes.sort(() => Math.random() - 0.5);
-
-    // 1. Try to place SHARK
-    for (const sType of sharkTypes) {
-      if (supply[cpuColor][sType] > 0) {
-        for (const cell of shuffledBoard) {
-          if (cell.owner === cpuColor || (cell.type && cell.type.includes('shark'))) continue;
-
-          // Try all 6 rotations
-          const rotations = [0, 1, 2, 3, 4, 5].sort(() => Math.random() - 0.5);
-          for (const rot of rotations) {
-            const mouths = getActiveMouths(sType, rot);
-            let eaten = 0;
-            if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
-
-            const neighbors = getNeighbors(cell.q, cell.r);
-            mouths.forEach(dirIdx => {
-              const nC = neighbors[dirIdx];
-              const nCell = board.find(c => c.q === nC.q && c.r === nC.r);
-              if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
-            });
-
-              if (eaten > 0) {
-                executeAIMoveAction({ type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
-                return;
-              }
-          }
-        }
+  const calculateChains = useCallback((currentBoard) => {
+    const visited = new Set();
+    const cellMap = new Map();
+    currentBoard.forEach(c => cellMap.set(`${c.q},${c.r}`, c));
+    const getChainSize = (startQ, startR, player) => {
+      const stack = [{q: startQ, r: startR}];
+      const seen = new Set([`${startQ},${startR}`]);
+      let size = 0;
+      while(stack.length){
+        const {q, r} = stack.pop();
+        const cell = cellMap.get(`${q},${r}`);
+        if(cell && (cell.type === PIECE_TYPES.FISH || cell.type.includes('shark'))) size++;
+        getNeighbors(q, r).forEach(n => { const key = `${n.q},${n.r}`; const nCell = cellMap.get(key); if(nCell && nCell.owner === player && !seen.has(key)) { seen.add(key); stack.push(n); } });
       }
-    }
+      return size;
+    };
+    let maxChains = { [PLAYERS.WHITE]: 0, [PLAYERS.BLACK]: 0 };
+    currentBoard.forEach(cell => { if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) { const size = getChainSize(cell.q, cell.r, cell.owner); if(size > maxChains[cell.owner]) maxChains[cell.owner] = size; visited.add(`${cell.q},${cell.r}`); } });
+    return maxChains;
+  }, []);
 
-    // 2. Try to place FISH
-    if (supply[cpuColor].fish >= 2) {
-      const emptyCells = shuffledBoard.filter(c => !c.type);
-      for (const c1 of emptyCells) {
-        const ns = getNeighbors(c1.q, c1.r);
-        const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
-        if (validNeighbors.length > 0) {
-          const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
-          executeAIMoveAction({ type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r });
-          return;
-        }
+  const chainLengths = useMemo(() => calculateChains(board), [board, calculateChains]);
+
+  const checkWinLocal = (currentBoard) => {
+    const maxChains = calculateChains(currentBoard);
+    if (maxChains[turn] >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason') };
+    if (maxChains[turn === 'white' ? 'black' : 'white'] >= WINNING_CHAIN) return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason') };
+    return null;
+  };
+
+  const addLog = (msg) => setGameLog(prev => [msg, ...prev].slice(0, 5));
+
+  const updateGameState = async (newBoard, newSupply, nextTurn, newLogs, newWinner = null, newReason = '') => {
+    if (isLocal || isAI) { setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs); if (newWinner) { setWinner(newWinner); setWinReason(newReason); } return; }
+    if (!roomId) return;
+    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
+    await updateDoc(roomRef, { board: JSON.stringify(newBoard), supply: newSupply, turn: nextTurn, logs: newLogs, winner: newWinner, winReason: newReason });
+  };
+
+  const getActiveMouths = useCallback((type, rotation) => {
+    if (type === PIECE_TYPES.SHARK_SMALL) return [rotation];
+    if (type === PIECE_TYPES.SHARK_BIG_60) return [rotation, (rotation + 1) % 6];
+    if (type === PIECE_TYPES.SHARK_BIG_120) return [rotation, (rotation + 2) % 6];
+    if (type === PIECE_TYPES.SHARK_BIG_180) return [rotation, (rotation + 3) % 6];
+    return [rotation];
+  }, []);
+
+  const currentMouths = useMemo(() => getActiveMouths(sharkSelection.type, sharkSelection.rotation), [sharkSelection, getActiveMouths]);
+
+  const getImpactedCells = (targetQ, targetR) => {
+    if (selectedAction !== 'shark') return [];
+    const targetCell = board.find(c => c.q === targetQ && c.r === targetR);
+    if (!targetCell || (targetCell.owner === turn) || (targetCell.type && targetCell.type.includes('shark'))) return [];
+    const impacted = [];
+    if (targetCell.type === PIECE_TYPES.FISH && targetCell.owner !== turn) impacted.push({ q: targetQ, r: targetR });
+    const neighbors = getNeighbors(targetQ, targetR);
+    currentMouths.forEach(dirIdx => {
+      const nCoords = neighbors[dirIdx];
+      const nCell = board.find(c => c.q === nCoords.q && c.r === nCoords.r);
+      if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner !== turn && !impacted.some(ic => ic.q === nCoords.q && ic.r === nCoords.r)) {
+        impacted.push({ q: nCoords.q, r: nCoords.r });
       }
-    }
+    });
+    return impacted;
+  };
+  const impactedCells = useMemo(() => {
+    const target = confirmMove || hoverCell;
+    return (target && selectedAction === 'shark') ? getImpactedCells(target.q, target.r) : [];
+  }, [confirmMove, hoverCell, selectedAction, currentMouths, board, turn]);
 
-    console.log("AI stuck: No moves found.");
+  // Defined here to be used by AI logic
+  const endTurnDB = async (newBoard, newSupply) => {
+    const winResult = checkWinLocal(newBoard);
+    const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
+    const logMsg = `${turn === 'white' ? t('white') : t('black')} ha mogut.`;
+    const newLogs = [logMsg, ...gameLog].slice(0, 5);
+    await updateGameState(newBoard, newSupply, nextPlayer, newLogs, winResult ? winResult.winner : null, winResult ? winResult.reason : '');
+    setPhase('SELECT_ACTION'); setSelectedAction(null); setTempMove({}); setConfirmMove(null);
+    const nextSupply = newSupply[nextPlayer];
+    setSharkSelection({ type: nextSupply.shark_small > 0 ? PIECE_TYPES.SHARK_SMALL : (nextSupply.shark_big_60 > 0 ? PIECE_TYPES.SHARK_BIG_60 : (nextSupply.shark_big_120 > 0 ? PIECE_TYPES.SHARK_BIG_120 : PIECE_TYPES.SHARK_BIG_180)), rotation: 0 });
   };
 
   const executeAIMoveAction = (move) => {
@@ -472,6 +521,64 @@ export default function XokGameHex() {
     endTurnDB(newBoard, newSupply);
   };
 
+  const makeAIMove = () => {
+    const cpuColor = PLAYERS.BLACK;
+    const opponent = PLAYERS.WHITE;
+
+    const shuffledBoard = [...board].sort(() => Math.random() - 0.5);
+    const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
+    sharkTypes.sort(() => Math.random() - 0.5);
+
+    for (const sType of sharkTypes) {
+      if (supply[cpuColor][sType] > 0) {
+        for (const cell of shuffledBoard) {
+          if (cell.owner === cpuColor || (cell.type && cell.type.includes('shark'))) continue;
+
+          const rotations = [0, 1, 2, 3, 4, 5].sort(() => Math.random() - 0.5);
+          for (const rot of rotations) {
+            const mouths = getActiveMouths(sType, rot);
+            let eaten = 0;
+            if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
+            const neighbors = getNeighbors(cell.q, cell.r);
+            mouths.forEach(dirIdx => {
+              const nC = neighbors[dirIdx];
+              const nCell = board.find(c => c.q === nC.q && c.r === nC.r);
+              if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
+            });
+
+              if (eaten > 0) {
+                executeAIMoveAction({ type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten });
+                return;
+              }
+          }
+        }
+      }
+    }
+
+    if (supply[cpuColor].fish >= 2) {
+      const emptyCells = shuffledBoard.filter(c => !c.type);
+      for (const c1 of emptyCells) {
+        const ns = getNeighbors(c1.q, c1.r);
+        const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
+        if (validNeighbors.length > 0) {
+          const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+          executeAIMoveAction({ type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r });
+          return;
+        }
+      }
+    }
+    console.log("AI stuck");
+  };
+
+  useEffect(() => {
+    if (isAI && turn === PLAYERS.BLACK && !winner) {
+      const timer = setTimeout(() => {
+        makeAIMove();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAI, turn, winner]);
+
 
   const createRoom = async () => {
     if (!user) { alert(t('err_auth')); return; }
@@ -502,85 +609,6 @@ export default function XokGameHex() {
 
   const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); };
 
-  const updateGameState = async (newBoard, newSupply, nextTurn, newLogs, newWinner = null, newReason = '') => {
-    if (isLocal || isAI) { setBoard(newBoard); setSupply(newSupply); setTurn(nextTurn); setGameLog(newLogs); if (newWinner) { setWinner(newWinner); setWinReason(newReason); } return; }
-    if (!roomId) return;
-    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
-    await updateDoc(roomRef, { board: JSON.stringify(newBoard), supply: newSupply, turn: nextTurn, logs: newLogs, winner: newWinner, winReason: newReason });
-  };
-
-  const calculateChains = useCallback((currentBoard) => {
-    const visited = new Set();
-    const cellMap = new Map();
-    currentBoard.forEach(c => cellMap.set(`${c.q},${c.r}`, c));
-    const getChainSize = (startQ, startR, player) => {
-      const stack = [{q: startQ, r: startR}];
-      const seen = new Set([`${startQ},${startR}`]);
-      let size = 0;
-      while(stack.length){
-        const {q, r} = stack.pop();
-        const cell = cellMap.get(`${q},${r}`);
-        if(cell && (cell.type === PIECE_TYPES.FISH || cell.type.includes('shark'))) size++;
-        getNeighbors(q, r).forEach(n => { const key = `${n.q},${n.r}`; const nCell = cellMap.get(key); if(nCell && nCell.owner === player && !seen.has(key)) { seen.add(key); stack.push(n); } });
-      }
-      return size;
-    };
-    let maxChains = { [PLAYERS.WHITE]: 0, [PLAYERS.BLACK]: 0 };
-    currentBoard.forEach(cell => { if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) { const size = getChainSize(cell.q, cell.r, cell.owner); if(size > maxChains[cell.owner]) maxChains[cell.owner] = size; visited.add(`${cell.q},${cell.r}`); } });
-    return maxChains;
-  }, []);
-
-  const chainLengths = useMemo(() => calculateChains(board), [board, calculateChains]);
-
-  const checkWinLocal = (currentBoard) => {
-    const maxChains = calculateChains(currentBoard);
-    if (maxChains[turn] >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason') };
-    if (maxChains[turn === 'white' ? 'black' : 'white'] >= WINNING_CHAIN) return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason') };
-    return null;
-  };
-
-  const getActiveMouths = useCallback((type, rotation) => {
-    if (type === PIECE_TYPES.SHARK_SMALL) return [rotation];
-    if (type === PIECE_TYPES.SHARK_BIG_60) return [rotation, (rotation + 1) % 6];
-    if (type === PIECE_TYPES.SHARK_BIG_120) return [rotation, (rotation + 2) % 6];
-    if (type === PIECE_TYPES.SHARK_BIG_180) return [rotation, (rotation + 3) % 6];
-    return [rotation];
-  }, []);
-
-  const currentMouths = useMemo(() => getActiveMouths(sharkSelection.type, sharkSelection.rotation), [sharkSelection, getActiveMouths]);
-
-  const getImpactedCells = (targetQ, targetR) => {
-    if (selectedAction !== 'shark') return [];
-    const targetCell = board.find(c => c.q === targetQ && c.r === targetR);
-    if (!targetCell || (targetCell.owner === turn) || (targetCell.type && targetCell.type.includes('shark'))) return [];
-    const impacted = [];
-    if (targetCell.type === PIECE_TYPES.FISH && targetCell.owner !== turn) impacted.push({ q: targetQ, r: targetR });
-    const neighbors = getNeighbors(targetQ, targetR);
-    currentMouths.forEach(dirIdx => {
-      const nCoords = neighbors[dirIdx];
-      const nCell = board.find(c => c.q === nCoords.q && c.r === nCoords.r);
-      if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner !== turn && !impacted.some(ic => ic.q === nCoords.q && ic.r === nCoords.r)) {
-        impacted.push({ q: nCoords.q, r: nCoords.r });
-      }
-    });
-    return impacted;
-  };
-  const impactedCells = useMemo(() => {
-    const target = confirmMove || hoverCell;
-    return (target && selectedAction === 'shark') ? getImpactedCells(target.q, target.r) : [];
-  }, [confirmMove, hoverCell, selectedAction, currentMouths, board, turn]);
-
-  const endTurnDB = async (newBoard, newSupply) => {
-    const winResult = checkWinLocal(newBoard);
-    const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
-    const logMsg = `${turn === 'white' ? t('white') : t('black')} ha mogut.`;
-    const newLogs = [logMsg, ...gameLog].slice(0, 5);
-    await updateGameState(newBoard, newSupply, nextPlayer, newLogs, winResult ? winResult.winner : null, winResult ? winResult.reason : '');
-    setPhase('SELECT_ACTION'); setSelectedAction(null); setTempMove({}); setConfirmMove(null);
-    const nextSupply = newSupply[nextPlayer];
-    setSharkSelection({ type: nextSupply.shark_small > 0 ? PIECE_TYPES.SHARK_SMALL : (nextSupply.shark_big_60 > 0 ? PIECE_TYPES.SHARK_BIG_60 : (nextSupply.shark_big_120 > 0 ? PIECE_TYPES.SHARK_BIG_120 : PIECE_TYPES.SHARK_BIG_180)), rotation: 0 });
-  };
-
   const handleCellClick = (cell) => {
     if (winner || !cell) return;
     if (!isLocal && !isAI && turn !== playerColor) return;
@@ -592,7 +620,7 @@ export default function XokGameHex() {
       if (!confirmMove || confirmMove.q !== q || confirmMove.r !== r) {
         let valid = false;
         if (selectedAction === 'shark') { valid = !(cell.owner === turn || (cell.type && cell.type.includes('shark'))); }
-        else if (phase === 'PLACING_FISH_2') { const neighbors = getNeighbors(tempMove.q1, tempMove.r1); valid = !cell.type && neighbors.some(n => n.q === q && n.r === r); }
+        else if (phase === 'PLACING_FISH_2') { const neighbors = getNeighbors(tempMove.q1, tempMove.r1); valid = !cell.type && neighbors.some(n => n.q === cell.q && n.r === r); }
         if (valid) { setConfirmMove({ q, r }); } else if (selectedAction === 'shark') { addLog(t('log_shark_invalid')); } else { addLog(t('log_fish_adj')); }
         return;
       }
@@ -701,7 +729,10 @@ export default function XokGameHex() {
     <div className={`text-xs font-bold text-center py-1 px-2 rounded-lg ${turn === playerColor || isLocal ? 'bg-green-100 text-green-700 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>{isLocal ? `${t('log_turn')} ${turn === PLAYERS.WHITE ? t('white') : t('black')}` : (turn === playerColor ? "ÉS EL TEU TORN!" : "ESPERANT RIVAL...")}</div>
     </div>
     <div className="p-6 flex-1 flex flex-col gap-4 overflow-y-auto">
-    <SupplyBoard turn={turn} supply={supply} chainLengths={chainLengths} playerColor={playerColor} isLocal={isLocal} t={t} />
+    <div className="flex gap-2 mb-2">
+    <Button variant="outline" className="flex-1 py-2 text-xs" onClick={() => setShowRules(true)}><BookOpen size={16} /> {t('rules')}</Button>
+    </div>
+    <SupplyBoard turn={turn} supply={supply} chainLengths={chainLengths} playerColor={playerColor} isLocal={isLocal} isAI={isAI} t={t} />
     <div className="space-y-2"><div className="grid grid-cols-2 gap-2"><Button variant="magic" className="py-2 px-2 text-xs" onClick={() => handleAskAI('tactics')}><BrainCircuit size={16} /> {t('ai_advice')}</Button><Button variant="secondary" className="py-2 px-2 text-xs" onClick={() => handleAskAI('commentary')}><MessageSquare size={16} /> {t('ai_comment')}</Button></div><AIResponseBox loading={aiState.loading} response={aiState.response} type={aiState.type} onClose={() => setAiState({ loading: false, response: null, type: null })} /></div>
     {!winner && (isLocal || turn === playerColor) && (
       <div className="space-y-3 pt-4 border-t border-slate-100">
@@ -717,7 +748,21 @@ export default function XokGameHex() {
     </div>
     <div className="flex-1 bg-cyan-900 overflow-hidden relative"><div className="absolute inset-0 flex items-center justify-center"><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
     {winner && <Modal title={t('game_over')} onClose={exitLobby}><div className="text-center py-4"><Trophy size={48} className="mx-auto text-yellow-500 mb-4 animate-bounce" /><h2 className="text-4xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</h2><div className="bg-teal-50 text-teal-800 px-4 py-2 rounded-lg font-bold">{winReason}</div><Button onClick={exitLobby} className="w-full mt-6">{t('exit_lobby')}</Button></div></Modal>}
-    {showRules && <Modal title={t('rules_title')} onClose={() => setShowRules(false)}><div className="space-y-4 text-slate-600 text-sm"><p className="bg-slate-50 p-3 rounded-lg border border-slate-200">{t('rules_goal')}</p><div><h4 className="font-bold text-teal-700">{t('rules_action1_title')}</h4><p>{t('rules_action1_desc')}</p></div><div><h4 className="font-bold text-rose-700">{t('rules_action2_title')}</h4><p>{t('rules_action2_desc')}</p><p className="mt-2 text-xs bg-rose-50 p-2 rounded text-rose-800">{t('rules_shark_eat')}</p></div><p className="text-xs text-slate-400 italic border-t pt-2">{t('rules_shark_types')}</p></div></Modal>}
+    {showRules && <Modal title={t('rules_title')} onClose={() => setShowRules(false)}>
+    <div className="space-y-4 text-slate-600 text-sm">
+    <p className="bg-slate-50 p-3 rounded-lg border border-slate-200">{t('rules_goal')}</p>
+    <div><h4 className="font-bold text-teal-700">{t('rules_action1_title')}</h4><p>{t('rules_action1_desc')}</p></div>
+    <div><h4 className="font-bold text-rose-700">{t('rules_action2_title')}</h4><p>{t('rules_action2_desc')}</p><p className="mt-2 text-xs bg-rose-50 p-2 rounded text-rose-800">{t('rules_shark_eat')}</p></div>
+    <p className="text-xs text-slate-400 italic border-t pt-2">{t('rules_shark_types')}</p>
+    <div className="mt-4 pt-4 border-t border-slate-200">
+    <h4 className="font-bold text-slate-700 mb-2">{t('rules_links_title')}</h4>
+    <div className="flex flex-col gap-2 text-xs">
+    <a href="https://boardgamegeek.com/boardgame/424373/xok" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1"><LinkIcon size={12}/> {t('link_bgg')}</a>
+    <a href="https://steffen-spiele.com/products/xok" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1"><LinkIcon size={12}/> {t('link_publisher')}</a>
+    </div>
+    </div>
+    </div>
+    </Modal>}
     </div>
   );
 }
