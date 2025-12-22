@@ -337,7 +337,7 @@ export default function XokGameHex() {
   const [supply, setSupply] = useState(JSON.parse(JSON.stringify(INITIAL_SUPPLY)));
   const [winner, setWinner] = useState(null);
   const [winReason, setWinReason] = useState('');
-  const [winningCells, setWinningCells] = useState([]); // NEW: Store winning chain
+  const [winningCells, setWinningCells] = useState([]);
   const [gameLog, setGameLog] = useState(["Benvingut a XOK!"]);
 
   const [phase, setPhase] = useState('SELECT_ACTION');
@@ -349,7 +349,7 @@ export default function XokGameHex() {
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
   const [boardScale, setBoardScale] = useState(1);
   const [showRules, setShowRules] = useState(false);
-  const [viewingEndGame, setViewingEndGame] = useState(false); // NEW: View board state after win
+  const [viewingEndGame, setViewingEndGame] = useState(false);
 
   const getBrowserLang = () => {
     const navLang = navigator.language || navigator.userLanguage;
@@ -394,7 +394,7 @@ export default function XokGameHex() {
         setSupply(data.supply);
         setWinner(data.winner);
         setWinReason(data.winReason);
-        if (data.winningCells) setWinningCells(JSON.parse(data.winningCells)); // Sync winning cells
+        if (data.winningCells) setWinningCells(JSON.parse(data.winningCells));
         if (data.logs) setGameLog(data.logs);
         if (data.turn !== turn) setConfirmMove(null);
       }
@@ -404,13 +404,11 @@ export default function XokGameHex() {
 
   // --- FUNCIONS DEL JOC I IA ---
 
-  // Improved to return winning cells
   const calculateChains = useCallback((currentBoard) => {
     const visited = new Set();
     const cellMap = new Map();
     currentBoard.forEach(c => cellMap.set(`${c.q},${c.r}`, c));
 
-    // DFS to get connected components
     const getComponent = (startQ, startR, player) => {
       const stack = [{q: startQ, r: startR}];
       const componentCells = [`${startQ},${startR}`];
@@ -442,17 +440,13 @@ export default function XokGameHex() {
       if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) {
         const { size, cells } = getComponent(cell.q, cell.r, cell.owner);
         if(size > maxChains[cell.owner]) maxChains[cell.owner] = size;
-
-        // Mark visited
         cells.forEach(k => visited.add(k));
-
         if (size >= WINNING_CHAIN) {
-          winCells = cells; // Capture winning chain
+          winCells = cells;
         }
       }
     });
 
-    // Convert key strings back to objects for highlighting if needed immediately
     return { maxChains, winCells };
   }, []);
 
@@ -473,7 +467,7 @@ export default function XokGameHex() {
       if (newWinner) {
         setWinner(newWinner);
         setWinReason(newReason);
-        setWinningCells(winCells); // Set local state for highlight
+        setWinningCells(winCells);
       }
       return;
     }
@@ -486,7 +480,7 @@ export default function XokGameHex() {
                     logs: newLogs,
                     winner: newWinner,
                     winReason: newReason,
-                    winningCells: JSON.stringify(winCells) // Sync to DB
+                    winningCells: JSON.stringify(winCells)
     });
   };
 
@@ -817,7 +811,7 @@ export default function XokGameHex() {
     const pieceColor = isWhite ? 'text-slate-900' : 'text-white';
     const bgColor = isWhite ? 'bg-white border-2 border-slate-200' : 'bg-slate-900 border-2 border-slate-700';
 
-    // Winning style
+    // Winning style (Green background)
     const winClass = isWinningPiece ? 'bg-emerald-500 border-emerald-300 ring-2 ring-emerald-400 z-50' : '';
 
     return (
@@ -887,7 +881,7 @@ export default function XokGameHex() {
     </div>
     <div className="p-3 bg-slate-50 border-t border-slate-200 h-24 overflow-y-auto font-mono text-[10px] text-slate-500">{gameLog.map((l, i) => <div key={i} className="mb-1 border-b border-slate-100 pb-1 last:border-0">› {l}</div>)}</div>
     </div>
-    <div className="flex-1 bg-cyan-900 overflow-hidden relative"><div className="absolute inset-0 flex items-center justify-center"><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
+    <div className="flex-1 bg-cyan-900 overflow-hidden relative"><div className="absolute inset-0 flex items-center justify-center" style={{ transform: `scale(${boardScale})` }}><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
 
     {/* GAME OVER MODAL (Conditional render) */}
     {winner && !viewingEndGame && (
