@@ -24,22 +24,8 @@ const MY_APP_ID = 'xok-webapp';
 // *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-let firebaseConfig = MY_FIREBASE_CONFIG;
-let appId = MY_APP_ID;
-
-// Intentem carregar la configuració automàtica de l'entorn de xat si existeix
-try {
-  if (typeof __firebase_config !== 'undefined') {
-    const autoConfig = JSON.parse(__firebase_config);
-    if (autoConfig) {
-      firebaseConfig = autoConfig;
-      appId = typeof __app_id !== 'undefined' ? __app_id : MY_APP_ID;
-    }
-  }
-} catch (e) {
-  console.warn("Error llegint configuració automàtica (usant manual):", e);
-  // Si falla el parseig, continuem amb MY_FIREBASE_CONFIG que ja està assignat
-}
+const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
+const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
 
 let app, auth, db;
 try {
@@ -47,7 +33,7 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (error) {
-  console.error("Error inicialitzant Firebase. Revisa la configuració.", error);
+  console.error("Error inicialitzant Firebase.", error);
 }
 
 // --- ICONA PERSONALITZADA: TAURÓ ---
@@ -117,7 +103,7 @@ const TRANSLATIONS = {
     lobby_local: "Jugar en local (passa i juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
-    game_over: "FINAL", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú", view_board: "Veure Taulell",
+    game_over: "FINAL DE PARTIDA", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú", view_board: "Veure Taulell",
     log_welcome: "Benvingut!", log_turn: "Torn de",
     win_reason: "Cadena de 10 peces!",
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
@@ -805,11 +791,12 @@ export default function XokGameHex() {
   const renderCell = (cell) => {
     const { x, y } = hexToPixel(cell.q, cell.r);
     const centerX = 0; const centerY = -270;
+
     const isConfirmedPos = confirmMove && confirmMove.q === cell.q && confirmMove.r === cell.r;
     const isHovered = !isConfirmedPos && hoverCell && hoverCell.q === cell.q && hoverCell.r === cell.r;
     let isHighlight = false, isValidTarget = false, isImpacted = false, showGhostShark = false, showGhostFish = false;
 
-    // WINNING CHAIN HIGHLIGHT (SAFEGUARD)
+    // WINNING CHAIN HIGHLIGHT
     const isWinningPiece = winner && Array.isArray(winningCells) && winningCells.includes(`${cell.q},${cell.r}`);
 
     if (!winner && (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE))) {
