@@ -394,7 +394,13 @@ export default function XokGameHex() {
         setSupply(data.supply);
         setWinner(data.winner);
         setWinReason(data.winReason);
-        if (data.winningCells) setWinningCells(JSON.parse(data.winningCells));
+        if (data.winningCells) {
+          try {
+            const wc = JSON.parse(data.winningCells);
+            setWinningCells(Array.isArray(wc) ? wc : []);
+          } catch(e) { setWinningCells([]); }
+        } else { setWinningCells([]); }
+
         if (data.logs) setGameLog(data.logs);
         if (data.turn !== turn) setConfirmMove(null);
       }
@@ -785,12 +791,13 @@ export default function XokGameHex() {
   const renderCell = (cell) => {
     const { x, y } = hexToPixel(cell.q, cell.r);
     const centerX = 0; const centerY = -270;
+
     const isConfirmedPos = confirmMove && confirmMove.q === cell.q && confirmMove.r === cell.r;
     const isHovered = !isConfirmedPos && hoverCell && hoverCell.q === cell.q && hoverCell.r === cell.r;
     let isHighlight = false, isValidTarget = false, isImpacted = false, showGhostShark = false, showGhostFish = false;
 
-    // WINNING CHAIN HIGHLIGHT
-    const isWinningPiece = winner && winningCells.includes(`${cell.q},${cell.r}`);
+    // WINNING CHAIN HIGHLIGHT (SAFEGUARD)
+    const isWinningPiece = winner && Array.isArray(winningCells) && winningCells.includes(`${cell.q},${cell.r}`);
 
     if (!winner && (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE))) {
       if (selectedAction === 'fish') {
