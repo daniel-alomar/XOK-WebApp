@@ -24,8 +24,21 @@ const MY_APP_ID = 'xok-webapp';
 // *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
-const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
+// Lògica de configuració segura
+let firebaseConfig = MY_FIREBASE_CONFIG;
+let appId = MY_APP_ID;
+
+try {
+  if (typeof __firebase_config !== 'undefined') {
+    const autoConfig = JSON.parse(__firebase_config);
+    if (autoConfig) {
+      firebaseConfig = autoConfig;
+      appId = typeof __app_id !== 'undefined' ? __app_id : MY_APP_ID;
+    }
+  }
+} catch (e) {
+  // Ignorar error si no estem a l'entorn de xat
+}
 
 let app, auth, db;
 try {
@@ -33,17 +46,8 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (error) {
-  console.error("Error inicialitzant Firebase.", error);
+  console.error("Error inicialitzant Firebase. Revisa la configuració.", error);
 }
-
-// --- ICONA PERSONALITZADA: TAURÓ ---
-const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
-  <path d="M14 5c.5 2 1 4 2 6" />
-  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
-  </svg>
-);
 
 // --- CONSTANTS ---
 const PLAYERS = { WHITE: 'white', BLACK: 'black' };
@@ -54,31 +58,12 @@ const PIECE_TYPES = {
   SHARK_BIG_120: 'shark_big_120',
   SHARK_BIG_180: 'shark_big_180',
 };
-
-// --- COMPONENT: INDICADOR DE BOQUES ---
-const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
-  const points = [];
-  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
-    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
-    </svg>
-  );
-};
-
 const INITIAL_SUPPLY = {
   [PLAYERS.WHITE]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
   [PLAYERS.BLACK]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
 };
 const WINNING_CHAIN = 10;
 
-// --- GEOMETRIA HEXAGONAL ---
 const LAYOUT_SIZE = 60;
 const DRAW_SIZE = 56;
 const HEX_WIDTH = Math.sqrt(3) * DRAW_SIZE;
@@ -93,7 +78,6 @@ const generateBoardCells = () => {
 };
 const getNeighbors = (q, r) => [{dq: 1, dr: 0}, {dq: 1, dr: -1}, {dq: 0, dr: -1}, {dq: -1, dr: 0}, {dq: -1, dr: 1}, {dq: 0, dr: 1}].map(d => ({ q: q + d.dq, r: r + d.dr }));
 
-// --- TRADUCCIONS ---
 const TRANSLATIONS = {
   ca: {
     title: "XOK", edition: "Edició Digital", turn: "Torn", white: "BLANC", black: "NEGRE",
@@ -104,7 +88,7 @@ const TRANSLATIONS = {
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
     game_over: "FINAL DE PARTIDA", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú", view_board: "Veure Taulell",
-    log_welcome: "Benvingut!", log_turn: "Torn de",
+    log_welcome: "Benvingut!", log_turn: "Torn de", log_reset: "Partida reiniciada.",
     win_reason: "Cadena de 10 peces!",
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
     you_are: "Ets el jugador",
@@ -193,7 +177,31 @@ const TRANSLATIONS = {
   }
 };
 
-// --- API IA ---
+// --- COMPONENTS ---
+const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
+  <path d="M14 5c.5 2 1 4 2 6" />
+  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
+  </svg>
+);
+
+const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
+  const points = [];
+  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
+    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
+    </svg>
+  );
+};
+
 const callGeminiAPI = async (prompt) => {
   const apiKey = "";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -206,7 +214,6 @@ const callGeminiAPI = async (prompt) => {
   } catch (error) { return "Error."; }
 };
 
-// --- COMPONENTS UI ---
 const Button = ({ onClick, disabled, children, className = "", variant = "primary" }) => {
   const variants = {
     primary: "bg-teal-600 text-white hover:bg-teal-500 disabled:bg-slate-300 disabled:shadow-none shadow-teal-900/20",
@@ -238,8 +245,6 @@ const AIResponseBox = ({ loading, response, type, onClose }) => {
     </div>
   );
 };
-
-// --- SUBCOMPONENTS ---
 
 const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
   <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
@@ -288,18 +293,10 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
     <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in slide-in-from-left-4">
     <h4 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-wider">{t('config_shark')}</h4>
     <div className="grid grid-cols-4 gap-1 mb-4">
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_SMALL, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_SMALL)} disabled={supply[turn].shark_small === 0}>
-    <SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} />
-    </button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_60, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_60)} disabled={supply[turn].shark_big_60 === 0}>
-    <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} />
-    </button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_120, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_120)} disabled={supply[turn].shark_big_120 === 0}>
-    <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} />
-    </button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_180, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_180)} disabled={supply[turn].shark_big_180 === 0}>
-    <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} />
-    </button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_SMALL, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_SMALL)} disabled={supply[turn].shark_small === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} /></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_60, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_60)} disabled={supply[turn].shark_big_60 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} /></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_120, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_120)} disabled={supply[turn].shark_big_120 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} /></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_180, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_180)} disabled={supply[turn].shark_big_180 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} /></button>
     </div>
     <div className="flex items-center justify-between mb-4">
     <button onClick={() => rotate('ccw')} className="w-12 h-12 p-2 bg-white rounded-full border border-slate-200 hover:bg-teal-50 text-slate-500 hover:text-teal-600 shadow-sm transition-all active:scale-95 flex items-center justify-center"><RotateCw size={24} strokeWidth={2.5}/></button>
@@ -349,7 +346,6 @@ export default function XokGameHex() {
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
   const [boardScale, setBoardScale] = useState(1);
   const [showRules, setShowRules] = useState(false);
-  const [viewingEndGame, setViewingEndGame] = useState(false);
 
   const getBrowserLang = () => {
     const navLang = navigator.language || navigator.userLanguage;
@@ -738,10 +734,36 @@ export default function XokGameHex() {
     setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]);
   };
 
-  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); setViewingEndGame(false); };
+  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); };
+
+  const handleRestart = async () => {
+    if (isLocal || isAI) {
+      setBoard(generateBoardCells());
+      setTurn(PLAYERS.WHITE);
+      setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY)));
+      setWinner(null);
+      setWinReason('');
+      setWinningCells([]);
+      setGameLog([t('log_welcome')]);
+      return;
+    }
+
+    if (roomId) {
+      const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
+      const initialState = {
+        board: JSON.stringify(generateBoardCells()),
+        turn: PLAYERS.WHITE,
+        supply: INITIAL_SUPPLY,
+        winner: null,
+        winReason: '',
+        winningCells: JSON.stringify([]),
+        logs: [t('log_welcome')]
+      };
+      await updateDoc(roomRef, initialState);
+    }
+  };
 
   const handleCellClick = (cell) => {
-    if (winner && !viewingEndGame) return; // Block clicks if game over unless viewing mode (though viewing mode usually static)
     if (winner) return; // No moves after win
 
     if (!isLocal && !isAI && turn !== playerColor) return;
@@ -819,14 +841,14 @@ export default function XokGameHex() {
     const bgColor = isWhite ? 'bg-white border-2 border-slate-200' : 'bg-slate-900 border-2 border-slate-700';
 
     // Winning style (Green background)
-    const winClass = isWinningPiece ? 'bg-emerald-500 border-emerald-300 ring-2 ring-emerald-400 z-50' : '';
+    const winClass = isWinningPiece ? 'bg-emerald-500 border-emerald-300 ring-2 ring-emerald-400 z-50 shadow-lg shadow-emerald-500/50' : '';
 
     return (
       <div key={`${cell.q},${cell.r}`} onClick={() => handleCellClick(cell)} onMouseEnter={() => setHoverCell(cell)} onMouseLeave={() => setHoverCell(null)}
       style={{ position: 'absolute', left: `calc(50% + ${x + centerX}px)`, top: `calc(50% + ${y + centerY}px)`, width: `${HEX_WIDTH}px`, height: `${HEX_HEIGHT}px`, marginLeft: `-${HEX_WIDTH/2}px`, marginTop: `-${HEX_HEIGHT/2}px`, clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)", zIndex: isConfirmedPos || isWinningPiece ? 50 : 10, cursor: (!winner && (turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE))) ? 'pointer' : 'default' }}
       className={`flex items-center justify-center transition-all duration-200 ${winClass} ${isImpacted ? 'bg-rose-500/80 animate-pulse border-rose-600 border-2' : ''} ${!isImpacted && !isWinningPiece && isValidTarget && !isConfirmedPos ? 'bg-teal-400 hover:bg-teal-300' : ''} ${!isImpacted && !isWinningPiece && !isValidTarget ? 'bg-white/20 hover:bg-white/30' : ''} ${isHighlight ? 'bg-teal-500' : ''} ${!isValidTarget && !isHighlight && !isImpacted && !isConfirmedPos && !isWinningPiece ? 'backdrop-blur-[1px]' : ''} ${isConfirmedPos ? 'bg-teal-200 ring-4 ring-teal-400 z-50 scale-105' : ''}`}>
-      {cell.type === PIECE_TYPES.FISH && <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center shadow-md ${isImpacted ? 'opacity-50 grayscale' : ''}`}><Fish className={pieceColor} size={26} strokeWidth={2.5} /></div>}
-      {cell.type && cell.type.includes('shark') && <div className={`w-14 h-14 rounded-xl ${bgColor} flex items-center justify-center relative shadow-lg`}><SharkIcon color={isWhite ? "#0f172a" : "#ffffff"} size={32} />{cell.mouths.map((m, i) => <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500 border-y-[7px] border-y-transparent"></div></div>)}</div>}
+      {cell.type === PIECE_TYPES.FISH && <div className={`w-12 h-12 rounded-full ${isWinningPiece ? 'bg-transparent border-white/50' : bgColor} flex items-center justify-center shadow-md ${isImpacted ? 'opacity-50 grayscale' : ''}`}><Fish className={isWinningPiece ? 'text-white' : pieceColor} size={26} strokeWidth={2.5} /></div>}
+      {cell.type && cell.type.includes('shark') && <div className={`w-14 h-14 rounded-xl ${isWinningPiece ? 'bg-transparent border-white/50' : bgColor} flex items-center justify-center relative shadow-lg`}><SharkIcon color={isWinningPiece ? "#ffffff" : (isWhite ? "#0f172a" : "#ffffff")} size={32} />{cell.mouths.map((m, i) => <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500 border-y-[7px] border-y-transparent"></div></div>)}</div>}
       {showGhostShark && <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-60 z-20"><div className={`w-14 h-14 rounded-xl ${turn === PLAYERS.WHITE ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600'} border-2 flex items-center justify-center relative shadow-lg`}><SharkIcon color={turn === PLAYERS.WHITE ? "#0f172a" : "#ffffff"} size={32} />{currentMouths.map((m, i) => <div key={i} className="absolute w-full h-full" style={{ transform: `rotate(${[0, -60, -120, 180, 120, 60][m]}deg)` }}><div className="absolute right-[-8px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500/70 border-y-[7px] border-y-transparent"></div></div>)}</div></div>}
       {showGhostFish && <Fish className="text-teal-300 animate-pulse w-10 h-10 z-20 pointer-events-none" />}
       {phase === 'PLACING_FISH_2' && tempMove.q1 === cell.q && tempMove.r1 === cell.r && <Fish className="text-teal-300 animate-pulse w-10 h-10" />}
@@ -859,51 +881,66 @@ export default function XokGameHex() {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col md:flex-row overflow-hidden">
-    <div className="w-full md:w-80 bg-white shadow-xl flex flex-col z-20 border-r border-slate-200">
-    <div className="p-6 border-b border-slate-100 bg-white flex flex-col gap-4">
-    <div className="flex items-center justify-between">
-    <div className="flex items-center gap-3"><div className="bg-teal-600 p-2 rounded-lg text-white shadow-lg"><SharkIcon size={24} color="white" /></div><div><h1 className="text-2xl font-black text-slate-900 leading-none">XOK</h1><span className="text-[10px] font-bold text-slate-400 tracking-wider">{isLocal ? t('local_mode_badge') : (isAI ? t('ai_mode_badge') : t('online_mode_badge'))}</span></div></div>
-    <button onClick={exitLobby} className="text-xs font-bold text-slate-400 hover:text-red-500 flex flex-col items-center"><X size={16}/> {t('exit_lobby')}</button>
+    {/* SIDEBAR */}
+    <div className="w-full md:w-80 bg-white shadow-xl flex flex-col z-20 border-r border-slate-200 order-2 md:order-1 h-auto md:h-full shrink-0">
+    <div className="p-4 border-b border-slate-100 bg-white flex flex-row md:flex-col gap-2 md:gap-4 items-center md:items-stretch justify-between">
+    <div className="flex items-center gap-3">
+    <div className="bg-teal-600 p-2 rounded-lg text-white shadow-lg"><SharkIcon size={24} color="white" /></div>
+    <div><h1 className="text-xl md:text-2xl font-black text-slate-900 leading-none">XOK</h1><span className="text-[10px] font-bold text-slate-400 tracking-wider hidden md:inline">{isLocal ? t('local_mode_badge') : (isAI ? t('ai_mode_badge') : t('online_mode_badge'))}</span></div>
     </div>
-    {!isLocal && !isAI && (<div className="bg-slate-100 p-3 rounded-xl flex items-center justify-between border border-slate-200"><div className="flex items-center gap-2 text-xs text-slate-500 font-bold"><Users size={14}/> ID: <span className="font-mono text-slate-800 text-sm select-all">{roomId}</span></div><button onClick={() => {navigator.clipboard.writeText(roomId); alert("ID Copiat!")}} className="p-1 hover:bg-white rounded"><Copy size={14} className="text-slate-400"/></button></div>)}
+    <button onClick={exitLobby} className="text-xs font-bold text-slate-400 hover:text-red-500 flex flex-col items-center"><X size={16}/> <span className="hidden md:inline">{t('exit_lobby')}</span></button>
+    </div>
+    {!isLocal && !isAI && (<div className="bg-slate-100 p-2 mx-4 mt-2 text-xs text-slate-500 font-bold rounded flex justify-between hidden md:flex"><span>ID: {roomId}</span><Copy size={12}/></div>)}
+
+    <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto w-full">
     <div className={`text-xs font-bold text-center py-1 px-2 rounded-lg ${(turn === playerColor || isLocal || (isAI && turn === PLAYERS.WHITE)) ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
     {(isAI && turn === PLAYERS.BLACK) ? t('ai_thinking') : (isLocal ? `${t('log_turn')} ${turn === PLAYERS.WHITE ? t('white') : t('black')}` : (turn === playerColor ? "ÉS EL TEU TORN!" : "ESPERANT RIVAL..."))}
     </div>
-    </div>
-    <div className="p-6 flex-1 flex flex-col gap-4 overflow-y-auto">
-    <div className="flex gap-2 mb-2">
-    <Button variant="outline" className="flex-1 py-2 text-xs" onClick={() => setShowRules(true)}><BookOpen size={16} /> {t('rules')}</Button>
-    </div>
-    <SupplyBoard turn={turn} supply={supply} chainLengths={chainLengths} playerColor={playerColor} isLocal={isLocal} isAI={isAI} t={t} />
-    <div className="space-y-2"><div className="grid grid-cols-2 gap-2"><Button variant="magic" className="py-2 px-2 text-xs" onClick={() => handleAskAI('tactics')}><BrainCircuit size={16} /> {t('ai_advice')}</Button><Button variant="secondary" className="py-2 px-2 text-xs" onClick={() => handleAskAI('commentary')}><MessageSquare size={16} /> {t('ai_comment')}</Button></div><AIResponseBox loading={aiState.loading} response={aiState.response} type={aiState.type} onClose={() => setAiState({ loading: false, response: null, type: null })} /></div>
-    {!winner && (isLocal || turn === playerColor || (isAI && turn === PLAYERS.WHITE)) && (
-      <div className="space-y-3 pt-4 border-t border-slate-100">
-      <h3 className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">{t('actions')}</h3>
-      <Button onClick={() => handleActionChange('fish')} disabled={supply[turn].fish < 2} className={`w-full justify-between transition-all ${selectedAction === 'fish' ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200 text-teal-800' : ''}`} variant={selectedAction === 'fish' ? 'ghost' : 'primary'}><div className="flex items-center gap-2"><Fish size={20}/> {t('fish_btn')}</div><div className="text-xs opacity-70">{t('fish_sub')}</div></Button>
-      <Button onClick={() => handleActionChange('shark')} disabled={supply[turn].shark_small === 0 && supply[turn].shark_big_60 === 0 && supply[turn].shark_big_120 === 0 && supply[turn].shark_big_180 === 0} className={`w-full justify-between transition-all ${selectedAction === 'shark' ? 'ring-2 ring-rose-500 bg-rose-50 border-rose-200 text-rose-800' : ''}`} variant={selectedAction === 'shark' ? 'ghost' : 'primary'}><div className="flex items-center gap-2"><SharkIcon size={20} /> {t('shark_btn')}</div><div className="text-xs opacity-70">{t('shark_sub')}</div></Button>
-      {selectedAction === 'shark' && <SharkConfigPanel sharkSelection={sharkSelection} setSharkSelection={setSharkSelection} supply={supply} turn={turn} currentMouths={currentMouths} t={t} />}
-      {selectedAction === 'fish' && <div className="mt-2 p-3 bg-teal-50 text-teal-800 text-xs rounded-lg border border-teal-100 flex gap-2"><Info size={14} className="shrink-0 mt-0.5" />{phase === 'PLACING_FISH_1' ? t('instr_fish_1') : t('instr_fish_2')}</div>}
-      </div>
-    )}
-    </div>
-    <div className="p-3 bg-slate-50 border-t border-slate-200 h-24 overflow-y-auto font-mono text-[10px] text-slate-500">{gameLog.map((l, i) => <div key={i} className="mb-1 border-b border-slate-100 pb-1 last:border-0">› {l}</div>)}</div>
-    </div>
-    <div className="flex-1 bg-cyan-900 overflow-hidden relative"><div className="absolute inset-0 flex items-center justify-center" style={{ transform: `scale(${boardScale})` }}><div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div></div></div>
 
-    {/* GAME OVER MODAL (Conditional render) */}
-    {winner && !viewingEndGame && (
-      <Modal title={t('game_over')} onClose={exitLobby}>
-      <div className="text-center py-4">
-      <Trophy size={48} className="mx-auto text-yellow-500 mb-4 animate-bounce" />
-      <h2 className="text-4xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</h2>
-      <div className="bg-teal-50 text-teal-800 px-4 py-2 rounded-lg font-bold mb-6">{winReason}</div>
-      <div className="flex gap-2">
-      <Button onClick={() => setViewingEndGame(true)} className="flex-1" variant="outline"><Eye size={16}/> {t('view_board')}</Button>
-      <Button onClick={exitLobby} className="flex-1">{t('exit_lobby')}</Button>
+    <SupplyBoard turn={turn} supply={supply} chainLengths={chainLengths} playerColor={playerColor} isLocal={isLocal} isAI={isAI} t={t} />
+
+    {/* WINNER BANNER (In Sidebar) */}
+    {winner && (
+      <div className="bg-teal-50 border-2 border-teal-500 p-4 rounded-xl animate-in slide-in-from-left-4 shadow-lg">
+      <div className="flex items-center gap-2 mb-2 text-teal-700 font-black uppercase text-sm"><Trophy size={18} /> {t('game_over')}</div>
+      <div className="text-2xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</div>
+      <div className="text-xs text-teal-600 font-bold mb-4">{winReason}</div>
+      <Button onClick={handleRestart} className="w-full shadow-teal-500/20"><RefreshCw size={16}/> {t('play_again')}</Button>
       </div>
-      </div>
-      </Modal>
     )}
+
+    {!winner && (
+      <div className="hidden md:block space-y-2">
+      <div className="grid grid-cols-2 gap-2"><Button variant="magic" className="py-2 px-2 text-xs" onClick={() => handleAskAI('tactics')}><BrainCircuit size={16} /> {t('ai_advice')}</Button><Button variant="secondary" className="py-2 px-2 text-xs" onClick={() => handleAskAI('commentary')}><MessageSquare size={16} /> {t('ai_comment')}</Button></div>
+      <AIResponseBox loading={aiState.loading} response={aiState.response} type={aiState.type} onClose={() => setAiState({ loading: false, response: null, type: null })} />
+      </div>
+    )}
+
+    {!winner && (isLocal || turn === playerColor || (isAI && turn === PLAYERS.WHITE)) && (
+      <div className="space-y-2 pt-2 border-t border-slate-100">
+      <h3 className="font-bold text-slate-400 text-[10px] uppercase tracking-widest hidden md:block">{t('actions')}</h3>
+      <div className="flex gap-2 md:flex-col">
+      <Button onClick={() => handleActionChange('fish')} disabled={supply[turn].fish < 2} className={`flex-1 justify-between transition-all ${selectedAction === 'fish' ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200 text-teal-800' : ''}`} variant={selectedAction === 'fish' ? 'ghost' : 'primary'}>
+      <div className="flex items-center gap-2"><Fish size={16}/> {t('fish_btn')}</div>
+      </Button>
+      <Button onClick={() => handleActionChange('shark')} disabled={supply[turn].shark_small === 0 && supply[turn].shark_big_60 === 0 && supply[turn].shark_big_120 === 0 && supply[turn].shark_big_180 === 0} className={`flex-1 justify-between transition-all ${selectedAction === 'shark' ? 'ring-2 ring-rose-500 bg-rose-50 border-rose-200 text-rose-800' : ''}`} variant={selectedAction === 'shark' ? 'ghost' : 'primary'}>
+      <div className="flex items-center gap-2"><SharkIcon size={16} /> {t('shark_btn')}</div>
+      </Button>
+      </div>
+
+      {selectedAction === 'shark' && <SharkConfigPanel sharkSelection={sharkSelection} setSharkSelection={setSharkSelection} supply={supply} turn={turn} currentMouths={currentMouths} t={t} />}
+      {selectedAction === 'fish' && <div className="mt-2 p-2 bg-teal-50 text-teal-800 text-[10px] md:text-xs rounded-lg border border-teal-100 flex gap-2"><Info size={14} className="shrink-0 mt-0.5" />{phase === 'PLACING_FISH_1' ? t('instr_fish_1') : t('instr_fish_2')}</div>}
+      </div>
+    )}
+    </div>
+    </div>
+
+    {/* GAME BOARD AREA */}
+    <div className="flex-1 bg-cyan-900 overflow-hidden relative order-1 md:order-2 h-[60vh] md:h-auto">
+    <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `scale(${boardScale})` }}>
+    <div className="relative w-[800px] h-[800px]">{board.map(cell => renderCell(cell))}</div>
+    </div>
+    </div>
 
     {/* RULES MODAL */}
     {showRules && <Modal title={t('rules_title')} onClose={() => setShowRules(false)}>
