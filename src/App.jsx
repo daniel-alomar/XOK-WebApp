@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, RefreshCw, Loader2, Bot, User, Eye, RefreshCw } from 'lucide-react';
+import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, RotateCcw, RotateCw, Loader2, Bot, User, Eye, RefreshCw } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -24,21 +24,8 @@ const MY_APP_ID = 'xok-webapp';
 // *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-// Lògica de configuració segura
-let firebaseConfig = MY_FIREBASE_CONFIG;
-let appId = MY_APP_ID;
-
-try {
-  if (typeof __firebase_config !== 'undefined') {
-    const autoConfig = JSON.parse(__firebase_config);
-    if (autoConfig) {
-      firebaseConfig = autoConfig;
-      appId = typeof __app_id !== 'undefined' ? __app_id : MY_APP_ID;
-    }
-  }
-} catch (e) {
-  // Ignorar error si no estem a l'entorn de xat
-}
+const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
+const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
 
 let app, auth, db;
 try {
@@ -46,8 +33,17 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (error) {
-  console.error("Error inicialitzant Firebase. Revisa la configuració.", error);
+  console.error("Error inicialitzant Firebase.", error);
 }
+
+// --- ICONA PERSONALITZADA: TAURÓ ---
+const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
+  <path d="M14 5c.5 2 1 4 2 6" />
+  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
+  </svg>
+);
 
 // --- CONSTANTS ---
 const PLAYERS = { WHITE: 'white', BLACK: 'black' };
@@ -58,12 +54,31 @@ const PIECE_TYPES = {
   SHARK_BIG_120: 'shark_big_120',
   SHARK_BIG_180: 'shark_big_180',
 };
+
+// --- COMPONENT: INDICADOR DE BOQUES ---
+const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
+  const points = [];
+  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
+    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
+    </svg>
+  );
+};
+
 const INITIAL_SUPPLY = {
   [PLAYERS.WHITE]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
   [PLAYERS.BLACK]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
 };
 const WINNING_CHAIN = 10;
 
+// --- GEOMETRIA HEXAGONAL ---
 const LAYOUT_SIZE = 60;
 const DRAW_SIZE = 56;
 const HEX_WIDTH = Math.sqrt(3) * DRAW_SIZE;
@@ -77,7 +92,9 @@ const generateBoardCells = () => {
   return cells;
 };
 const getNeighbors = (q, r) => [{dq: 1, dr: 0}, {dq: 1, dr: -1}, {dq: 0, dr: -1}, {dq: -1, dr: 0}, {dq: -1, dr: 1}, {dq: 0, dr: 1}].map(d => ({ q: q + d.dq, r: r + d.dr }));
+const getDistance = (q, r) => (Math.abs(q) + Math.abs(q + r) + Math.abs(r)) / 2;
 
+// --- TRADUCCIONS ---
 const TRANSLATIONS = {
   ca: {
     title: "XOK", edition: "Edició Digital", turn: "Torn", white: "BLANC", black: "NEGRE",
@@ -87,9 +104,13 @@ const TRANSLATIONS = {
     lobby_local: "Jugar en local (passa i juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
-    game_over: "FINAL DE PARTIDA", win_msg: "GUANYA!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú", view_board: "Veure Taulell",
+    game_over: "FINAL DE PARTIDA", win_msg: "GUANYA!", tie_msg: "EMPAT!", play_again: "Jugar de nou", exit_lobby: "Sortir al Menú", view_board: "Veure Taulell",
     log_welcome: "Benvingut!", log_turn: "Torn de", log_reset: "Partida reiniciada.",
     win_reason: "Cadena de 10 peces!",
+    tie_reason_stale: "No es poden fer més moviments.",
+    tie_reason_length: "Guanya per cadena més llarga.",
+    tie_reason_sharks: "Guanya per més taurons a la cadena.",
+    tie_reason_draw: "Empat absolut!",
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
     you_are: "Ets el jugador",
     err_full: "Sala plena o no existeix.", err_auth: "Error d'autenticació.",
@@ -107,6 +128,7 @@ const TRANSLATIONS = {
     rules_action2_desc: "Col·loca un tauró en una casella buida O sobre un peix de l'oponent.",
     rules_shark_eat: "Important: El tauró HA DE menjar almenys un peix enemic. Menja el peix que té a sota i els que assenyalen les seves boques. Els peixos menjats tornen a la reserva del rival.",
     rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 boques amb angles fixos: 60°, 120°, 180°).",
+    rules_end_condition: "Si un jugador no pot fer un moviment vàlid, la partida s'acaba. Guanya qui tingui la cadena més llarga. En cas d'empat, guanya qui tingui més taurons a la cadena. Si persisteix l'empat, guanyeu tots dos.",
     rules_links_title: "Enllaços d'interès",
     link_bgg: "Veure a BoardGameGeek",
     link_publisher: "Web oficial (Steffen Spiele)"
@@ -119,9 +141,13 @@ const TRANSLATIONS = {
     lobby_local: "Play Local (Pass & Play)", lobby_ai: "Play vs CPU (AI)",
     lobby_waiting: "Waiting for opponent...", lobby_share: "Share code:",
     lobby_online_divider: "ONLINE",
-    game_over: "GAME OVER", win_msg: "WINS!", play_again: "Play Again", exit_lobby: "Exit to Menu", view_board: "View Board",
-    log_welcome: "Welcome!", log_turn: "Turn of",
+    game_over: "GAME OVER", win_msg: "WINS!", tie_msg: "DRAW!", play_again: "Play Again", exit_lobby: "Exit to Menu", view_board: "View Board",
+    log_welcome: "Welcome!", log_turn: "Turn of", log_reset: "Game reset.",
     win_reason: "Chain of 10 pieces!",
+    tie_reason_stale: "No valid moves left.",
+    tie_reason_length: "Wins by longest chain.",
+    tie_reason_sharks: "Wins by most sharks in chain.",
+    tie_reason_draw: "It's a draw!",
     config_shark: "Shark Config", rotate_hint: "Click direction",
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
@@ -139,6 +165,7 @@ const TRANSLATIONS = {
     rules_action2_desc: "Place a shark on an empty space OR on top of an opponent's fish.",
     rules_shark_eat: "Important: The shark MUST eat at least one enemy fish. It eats the fish underneath and any fish pointed to by its mouths. Eaten fish return to the opponent's supply.",
     rules_shark_types: "Types: Small Sharks (1 mouth) and Big Sharks (2 mouths with fixed angles: 60°, 120°, 180°).",
+    rules_end_condition: "If a player cannot make a valid move, the game ends. The player with the longest chain wins. In case of a tie, the one with most sharks in the chain wins. If still tied, both win.",
     rules_links_title: "Useful Links",
     link_bgg: "View on BoardGameGeek",
     link_publisher: "Official Website (Steffen Spiele)"
@@ -151,9 +178,13 @@ const TRANSLATIONS = {
     lobby_local: "Jugar en Local (Pasa y Juega)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperando oponente...", lobby_share: "Comparte este código:",
     lobby_online_divider: "EN LÍNEA",
-    game_over: "FINAL", win_msg: "GANA!", play_again: "Jugar de nuevo", exit_lobby: "Salir al Menú", view_board: "Ver Tablero",
-    log_welcome: "¡Bienvenido!", log_turn: "Turno de",
+    game_over: "FINAL", win_msg: "GANA!", tie_msg: "¡EMPATE!", play_again: "Jugar de nuevo", exit_lobby: "Salir al Menú", view_board: "Ver Tablero",
+    log_welcome: "¡Bienvenido!", log_turn: "Turno de", log_reset: "Partida reiniciada.",
     win_reason: "¡Cadena de 10 piezas!",
+    tie_reason_stale: "No hay movimientos válidos.",
+    tie_reason_length: "Gana por cadena más larga.",
+    tie_reason_sharks: "Gana por más tiburones.",
+    tie_reason_draw: "¡Empate absoluto!",
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
@@ -171,37 +202,14 @@ const TRANSLATIONS = {
     rules_action2_desc: "Coloca un tiburón en una casilla vacía O sobre un pez del oponente.",
     rules_shark_eat: "Importante: El tiburón DEBE comer al menos un pez enemigo. Come el pez de abajo y los señalados por sus bocas. Los peces comidos vuelven a la reserva del rival.",
     rules_shark_types: "Tipos: Tiburones Pequeños (1 boca) y Grandes (2 bocas con ángulos fijos: 60°, 120°, 180°).",
+    rules_end_condition: "Si un jugador no puede mover, el juego termina. Gana quien tenga la cadena más larga. En caso de empate, gana quien tenga más tiburones en ella. Si persiste, ganáis ambos.",
     rules_links_title: "Enlaces de interés",
     link_bgg: "Ver en BoardGameGeek",
     link_publisher: "Web oficial (Steffen Spiele)"
   }
 };
 
-// --- COMPONENTS ---
-const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
-  <path d="M14 5c.5 2 1 4 2 6" />
-  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
-  </svg>
-);
-
-const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
-  const points = [];
-  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
-    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
-    </svg>
-  );
-};
-
+// --- API IA ---
 const callGeminiAPI = async (prompt) => {
   const apiKey = "";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -214,6 +222,7 @@ const callGeminiAPI = async (prompt) => {
   } catch (error) { return "Error."; }
 };
 
+// --- COMPONENTS UI ---
 const Button = ({ onClick, disabled, children, className = "", variant = "primary" }) => {
   const variants = {
     primary: "bg-teal-600 text-white hover:bg-teal-500 disabled:bg-slate-300 disabled:shadow-none shadow-teal-900/20",
@@ -235,16 +244,7 @@ const Modal = ({ title, children, onClose }) => (
   </div>
 );
 
-const AIResponseBox = ({ loading, response, type, onClose }) => {
-  if (!loading && !response) return null;
-  return (
-    <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 shadow-inner relative animate-in slide-in-from-top-4">
-    <div className="flex items-center gap-2 mb-2 text-indigo-700 font-bold uppercase text-xs tracking-widest"><Sparkles size={14} /> {type === 'tactics' ? 'Consell' : 'Comentar'}</div>
-    {loading ? <div className="text-slate-500 text-xs animate-pulse">...</div> : <div className="text-slate-700 text-sm leading-relaxed">{response}</div>}
-    {!loading && <button onClick={onClose} className="absolute top-2 right-2 text-indigo-300 hover:text-indigo-500"><X size={16} /></button>}
-    </div>
-  );
-};
+// --- SUBCOMPONENTS ---
 
 const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
   <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
@@ -255,9 +255,9 @@ const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-500"/> <b>{supply.white.shark_small}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-500"/> <b>{supply.white.shark_big_60 + supply.white.shark_big_120 + supply.white.shark_big_180}</b></div>
   </div>
-  <div className={`mt-2 pt-1 border-t border-slate-100 flex justify-between items-center ${chainLengths.white >= 10 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>
+  <div className={`mt-2 pt-1 border-t border-slate-100 flex justify-between items-center ${chainLengths.white.size >= 10 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>
   <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
-  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.white}</span>
+  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.white.size}</span>
   </div>
   </div>
   <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.BLACK ? 'bg-slate-900 text-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
@@ -267,9 +267,9 @@ const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-400"/> <b>{supply.black.shark_small}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-400"/> <b>{supply.black.shark_big_60 + supply.black.shark_big_120 + supply.black.shark_big_180}</b></div>
   </div>
-  <div className={`mt-2 pt-1 border-t border-slate-700 flex justify-between items-center ${chainLengths.black >= 10 ? 'text-green-400 font-bold' : 'text-slate-300'}`}>
+  <div className={`mt-2 pt-1 border-t border-slate-700 flex justify-between items-center ${chainLengths.black.size >= 10 ? 'text-green-400 font-bold' : 'text-slate-300'}`}>
   <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
-  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.black}</span>
+  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.black.size}</span>
   </div>
   </div>
   </div>
@@ -293,10 +293,18 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
     <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in slide-in-from-left-4">
     <h4 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-wider">{t('config_shark')}</h4>
     <div className="grid grid-cols-4 gap-1 mb-4">
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_SMALL, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_SMALL)} disabled={supply[turn].shark_small === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} /></button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_60, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_60)} disabled={supply[turn].shark_big_60 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} /></button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_120, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_120)} disabled={supply[turn].shark_big_120 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} /></button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_180, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_180)} disabled={supply[turn].shark_big_180 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} /></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_SMALL, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_SMALL)} disabled={supply[turn].shark_small === 0}>
+    <SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} />
+    </button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_60, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_60)} disabled={supply[turn].shark_big_60 === 0}>
+    <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} />
+    </button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_120, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_120)} disabled={supply[turn].shark_big_120 === 0}>
+    <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} />
+    </button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_180, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_180)} disabled={supply[turn].shark_big_180 === 0}>
+    <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} />
+    </button>
     </div>
     <div className="flex items-center justify-between mb-4">
     <button onClick={() => rotate('ccw')} className="w-12 h-12 p-2 bg-white rounded-full border border-slate-200 hover:bg-teal-50 text-slate-500 hover:text-teal-600 shadow-sm transition-all active:scale-95 flex items-center justify-center"><RotateCw size={24} strokeWidth={2.5}/></button>
@@ -341,7 +349,6 @@ export default function XokGameHex() {
   const [selectedAction, setSelectedAction] = useState(null);
   const [tempMove, setTempMove] = useState({});
   const [confirmMove, setConfirmMove] = useState(null);
-  const [aiState, setAiState] = useState({ loading: false, response: null, type: null });
   const [hoverCell, setHoverCell] = useState(null);
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
   const [boardScale, setBoardScale] = useState(1);
@@ -416,11 +423,15 @@ export default function XokGameHex() {
       const componentCells = [`${startQ},${startR}`];
       const seen = new Set([`${startQ},${startR}`]);
       let size = 0;
+      let sharksInChain = 0;
 
       while(stack.length){
         const {q, r} = stack.pop();
         const cell = cellMap.get(`${q},${r}`);
-        if(cell && (cell.type === PIECE_TYPES.FISH || cell.type.includes('shark'))) size++;
+        if(cell) {
+          size++;
+          if (cell.type && cell.type.includes('shark')) sharksInChain++;
+        }
 
         getNeighbors(q, r).forEach(n => {
           const key = `${n.q},${n.r}`;
@@ -432,17 +443,25 @@ export default function XokGameHex() {
           }
         });
       }
-      return { size, cells: componentCells };
+      return { size, sharks: sharksInChain, cells: componentCells };
     };
 
-    let maxChains = { [PLAYERS.WHITE]: 0, [PLAYERS.BLACK]: 0 };
+    let maxChains = {
+      [PLAYERS.WHITE]: { size: 0, sharks: 0 },
+      [PLAYERS.BLACK]: { size: 0, sharks: 0 }
+    };
     let winCells = [];
 
     currentBoard.forEach(cell => {
       if(cell.owner && !visited.has(`${cell.q},${cell.r}`)) {
-        const { size, cells } = getComponent(cell.q, cell.r, cell.owner);
-        if(size > maxChains[cell.owner]) maxChains[cell.owner] = size;
+        const { size, sharks, cells } = getComponent(cell.q, cell.r, cell.owner);
+
+        if (size > maxChains[cell.owner].size || (size === maxChains[cell.owner].size && sharks > maxChains[cell.owner].sharks)) {
+          maxChains[cell.owner] = { size, sharks };
+        }
+
         cells.forEach(k => visited.add(k));
+
         if (size >= WINNING_CHAIN) {
           winCells = cells;
         }
@@ -454,10 +473,98 @@ export default function XokGameHex() {
 
   const chainLengths = useMemo(() => calculateChains(board).maxChains, [board, calculateChains]);
 
-  const checkWinLocal = (currentBoard) => {
+  // STALEMATE CHECK
+  const canPlayerMove = (player, currentBoard, currentSupply) => {
+    // 1. Can place fish? (Needs >=2 fish and 2 empty adjacent cells)
+    if (currentSupply[player].fish >= 2) {
+      const emptyCells = currentBoard.filter(c => !c.type);
+      for (const cell of emptyCells) {
+        const ns = getNeighbors(cell.q, cell.r);
+        if (ns.some(n => {
+          const nc = currentBoard.find(b => b.q === n.q && b.r === n.r);
+          return nc && !nc.type;
+        })) return true;
+      }
+    }
+
+    // 2. Can place shark? (Needs shark > 0 AND eat >= 1)
+    const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
+    const opponent = player === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
+
+    for (const sType of sharkTypes) {
+      if (currentSupply[player][sType] > 0) {
+        // Brute force check all possible shark moves
+        for (const cell of currentBoard) {
+          if (cell.owner === player || (cell.type && cell.type.includes('shark'))) continue;
+
+          // Check if eating is possible in any rotation
+          for (let rot=0; rot<6; rot++) {
+            const mouths = getActiveMouths(sType, rot);
+            let eaten = 0;
+            if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
+            const neighbors = getNeighbors(cell.q, cell.r);
+            mouths.forEach(dir => {
+              const n = neighbors[dir];
+              const nc = currentBoard.find(c => c.q === n.q && c.r === n.r);
+              if (nc && nc.type === PIECE_TYPES.FISH && nc.owner === opponent) eaten++;
+            });
+              if (eaten > 0) return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
+  const checkWinLocal = (currentBoard, currentSupply) => {
     const { maxChains, winCells } = calculateChains(currentBoard);
-    if (maxChains[turn] >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason'), winningCells: winCells };
-    if (maxChains[turn === 'white' ? 'black' : 'white'] >= WINNING_CHAIN) return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason'), winningCells: winCells };
+
+    // Normal Win (10+)
+    if (maxChains[turn].size >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason'), winningCells: winCells };
+    if (maxChains[turn === 'white' ? 'black' : 'white'].size >= WINNING_CHAIN) {
+      // This case shouldn't happen usually as active player wins first, but safe to have
+      return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason'), winningCells: winCells };
+    }
+
+    // Stalemate Check (Next player cannot move)
+    const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
+    if (!canPlayerMove(nextPlayer, currentBoard, currentSupply)) {
+      // Compare chains
+      const whiteScore = maxChains.white;
+      const blackScore = maxChains.black;
+
+      let winner = null;
+      let reason = t('tie_reason_stale') + " ";
+
+      if (whiteScore.size > blackScore.size) {
+        winner = PLAYERS.WHITE;
+        reason += t('tie_reason_length');
+      } else if (blackScore.size > whiteScore.size) {
+        winner = PLAYERS.BLACK;
+        reason += t('tie_reason_length');
+      } else {
+        // Tie on size, check sharks
+        if (whiteScore.sharks > blackScore.sharks) {
+          winner = PLAYERS.WHITE;
+          reason += t('tie_reason_sharks');
+        } else if (blackScore.sharks > whiteScore.sharks) {
+          winner = PLAYERS.BLACK;
+          reason += t('tie_reason_sharks');
+        } else {
+          // Total Tie
+          winner = 'DRAW'; // Special case
+          reason += t('tie_reason_draw');
+        }
+      }
+
+      // If someone won by stalemate, we need to highlight their max chain
+      const finalCalc = calculateChains(currentBoard); // Recalc to get winning cells if needed?
+      // Actually, just find the max chain cells of the winner
+      // (Simplified: we won't highlight stalemate win chains for now to keep code simple, or use existing winCells if applicable)
+
+      return { winner, reason, winningCells: [] };
+    }
+
     return null;
   };
 
@@ -519,15 +626,18 @@ export default function XokGameHex() {
 
   // Defined here to be used by AI logic
   const endTurnDB = async (newBoard, newSupply) => {
-    const winResult = checkWinLocal(newBoard);
+    const winResult = checkWinLocal(newBoard, newSupply); // Pass newSupply for stalemate check
     const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
     const logMsg = `${turn === 'white' ? t('white') : t('black')} ha mogut.`;
     const newLogs = [logMsg, ...gameLog].slice(0, 5);
 
+    // If win/tie, prevent turn change (or handle it)
+    const nextTurnState = winResult ? turn : nextPlayer;
+
     await updateGameState(
       newBoard,
       newSupply,
-      nextPlayer,
+      nextTurnState,
       newLogs,
       winResult ? winResult.winner : null,
       winResult ? winResult.reason : '',
@@ -535,8 +645,10 @@ export default function XokGameHex() {
     );
 
     setPhase('SELECT_ACTION'); setSelectedAction(null); setTempMove({}); setConfirmMove(null);
-    const nextSupply = newSupply[nextPlayer];
-    setSharkSelection({ type: nextSupply.shark_small > 0 ? PIECE_TYPES.SHARK_SMALL : (nextSupply.shark_big_60 > 0 ? PIECE_TYPES.SHARK_BIG_60 : (nextSupply.shark_big_120 > 0 ? PIECE_TYPES.SHARK_BIG_120 : PIECE_TYPES.SHARK_BIG_180)), rotation: 0 });
+    if (!winResult) {
+      const nextSupplyState = newSupply[nextPlayer];
+      setSharkSelection({ type: nextSupplyState.shark_small > 0 ? PIECE_TYPES.SHARK_SMALL : (nextSupplyState.shark_big_60 > 0 ? PIECE_TYPES.SHARK_BIG_60 : (nextSupplyState.shark_big_120 > 0 ? PIECE_TYPES.SHARK_BIG_120 : PIECE_TYPES.SHARK_BIG_180)), rotation: 0 });
+    }
   };
 
   const executeAIMoveAction = (move) => {
@@ -580,21 +692,23 @@ export default function XokGameHex() {
   const makeAIMove = () => {
     const cpuColor = PLAYERS.BLACK;
     const opponent = PLAYERS.WHITE;
-    const opponentChain = chainLengths[opponent];
-    const myChain = chainLengths[cpuColor];
+    const opponentChain = chainLengths[opponent].size;
+    const myChain = chainLengths[cpuColor].size;
 
     const shuffledBoard = [...board].sort(() => Math.random() - 0.5);
     const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
     sharkTypes.sort(() => Math.random() - 0.5);
 
-    // --- IMPROVED STRATEGY LOGIC ---
+    // --- IMPROVED AI ---
 
-    // 1. DETERMINE URGENCY
-    const isEmergency = opponentChain >= 7; // Opponent close to winning
-    const isOpportunity = myChain >= 8; // I am close to winning
+    // Calculate remaining shark ratio
+    const totalSharks = supply[cpuColor].shark_small + supply[cpuColor].shark_big_60 + supply[cpuColor].shark_big_120 + supply[cpuColor].shark_big_180;
+    const isLowSharks = totalSharks <= 2;
 
-    // 2. SHARK EVALUATION FUNCTION
-    // Returns a move if good, else null
+    // Heuristic Weights
+    const isEmergency = opponentChain >= 6;
+    const isOpportunity = myChain >= 8;
+
     const evaluateSharkMove = (minEaten = 1, criticalOnly = false) => {
       for (const sType of sharkTypes) {
         if (supply[cpuColor][sType] > 0) {
@@ -605,9 +719,9 @@ export default function XokGameHex() {
             for (const rot of rotations) {
               const mouths = getActiveMouths(sType, rot);
               let eaten = 0;
+              let eatsUnder = false;
 
-              // Simulate eat
-              if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
+              if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) { eaten++; eatsUnder = true; }
               const neighbors = getNeighbors(cell.q, cell.r);
               mouths.forEach(dirIdx => {
                 const nC = neighbors[dirIdx];
@@ -615,14 +729,12 @@ export default function XokGameHex() {
                 if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
               });
 
-                // Strategic filtering
-                if (eaten >= minEaten) {
-                  // If critical mode, ensure we are eating from the big chain (heuristic: adjacency)
-                  if (criticalOnly) {
-                    // Simplified check: is any eaten fish neighbor to another opponent fish?
-                    // (Assuming bigger chain implies connectivity)
-                    return { type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten };
-                  }
+                // Bonus for eating under
+                const score = eaten + (eatsUnder ? 0.5 : 0);
+                const threshold = minEaten + (eatsUnder ? 0.5 : 0);
+
+                if (score >= threshold) {
+                  // Centrality bonus check? (Optional, kept simple for now)
                   return { type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten };
                 }
             }
@@ -632,50 +744,42 @@ export default function XokGameHex() {
       return null;
     };
 
-    // 3. DECISION TREE
     let bestMove = null;
 
-    // A. EMERGENCY: Opponent about to win. Must eat 1+ fish to break chain.
-    if (isEmergency) {
-      bestMove = evaluateSharkMove(1, true); // Try to eat anything
+    // A. Critical Defense / Finisher
+    if (isEmergency || isOpportunity) {
+      bestMove = evaluateSharkMove(1, true);
     }
 
-    // B. ATTACK: If can eat 2+ fish (Great value), do it.
-    // Only if we have supply and opponent isn't tiny
-    if (!bestMove && opponentChain >= 3) {
+    // B. High Value Attack (Eat 2+)
+    if (!bestMove && !isLowSharks) {
       bestMove = evaluateSharkMove(2, false);
     }
 
-    // C. BUILD: If no good attack, try to build chain with fish.
+    // C. Strategic Fish Placement
     if (!bestMove && supply[cpuColor].fish >= 2) {
-      const emptyCells = shuffledBoard.filter(c => !c.type);
-
-      // Smart Placement: Adjacent to own pieces
-      const myPieces = board.filter(c => c.owner === cpuColor);
-      const getEmptyNeighbors = (pieces) => {
-        const targets = new Set();
-        pieces.forEach(p => {
-          getNeighbors(p.q, p.r).forEach(n => {
-            const c = board.find(b => b.q === n.q && b.r === n.r);
-            if (c && !c.type) targets.add(c);
-          });
-        });
-        return Array.from(targets);
-      };
-
+      // Look for gaps in opponent chain or own chain extension
+      // Simplified: Neighbors of ANY piece
+      const occupied = board.filter(c => c.type);
       let candidates = [];
-      if (myPieces.length > 0) candidates = getEmptyNeighbors(myPieces);
-      if (candidates.length < 2) candidates = emptyCells; // Fallback to random if no neighbors
 
-      // Try to find a pair
+      // Get neighbors of all pieces to play "connected"
+      const candidateSet = new Set();
+      occupied.forEach(p => {
+        getNeighbors(p.q, p.r).forEach(n => {
+          const c = board.find(b => b.q === n.q && b.r === n.r);
+          if (c && !c.type) candidateSet.add(c);
+        });
+      });
+      candidates = Array.from(candidateSet);
+      if (candidates.length < 2) candidates = shuffledBoard.filter(c => !c.type);
+
+      candidates.sort(() => Math.random() - 0.5);
+
       for (const c1 of candidates) {
         const ns = getNeighbors(c1.q, c1.r);
-        // Prefer neighbor that is also empty (adjacency required)
-        // And ideally neighbor that is also neighbor to own piece (closing gaps)
         const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
-
         if (validNeighbors.length > 0) {
-          // Pick random valid neighbor
           const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
           bestMove = { type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r };
           break;
@@ -683,17 +787,18 @@ export default function XokGameHex() {
       }
     }
 
-    // D. LAST RESORT: Use shark to eat 1 if can't place fish or nothing else to do
+    // D. Desperate Shark (Eat 1)
     if (!bestMove) {
       bestMove = evaluateSharkMove(1, false);
     }
 
-    // EXECUTE
     if (bestMove) {
       executeAIMoveAction(bestMove);
     } else {
-      console.log("AI Stuck/Pass");
-      // In real game, this might be game over condition
+      // If absolutely no move, AI passes (effectively ends game via next check)
+      // For now, force checkStalemate by passing null move?
+      // Calling endTurnDB with same state will trigger win check
+      endTurnDB(board, supply);
     }
   };
 
@@ -903,16 +1008,9 @@ export default function XokGameHex() {
     {winner && (
       <div className="bg-teal-50 border-2 border-teal-500 p-4 rounded-xl animate-in slide-in-from-left-4 shadow-lg">
       <div className="flex items-center gap-2 mb-2 text-teal-700 font-black uppercase text-sm"><Trophy size={18} /> {t('game_over')}</div>
-      <div className="text-2xl font-black text-slate-800 mb-2">{winner === PLAYERS.WHITE ? t('white') : t('black')} {t('win_msg')}</div>
+      <div className="text-2xl font-black text-slate-800 mb-2">{winner === 'DRAW' ? t('tie_msg') : `${winner === PLAYERS.WHITE ? t('white') : t('black')} ${t('win_msg')}`}</div>
       <div className="text-xs text-teal-600 font-bold mb-4">{winReason}</div>
       <Button onClick={handleRestart} className="w-full shadow-teal-500/20"><RefreshCw size={16}/> {t('play_again')}</Button>
-      </div>
-    )}
-
-    {!winner && (
-      <div className="hidden md:block space-y-2">
-      <div className="grid grid-cols-2 gap-2"><Button variant="magic" className="py-2 px-2 text-xs" onClick={() => handleAskAI('tactics')}><BrainCircuit size={16} /> {t('ai_advice')}</Button><Button variant="secondary" className="py-2 px-2 text-xs" onClick={() => handleAskAI('commentary')}><MessageSquare size={16} /> {t('ai_comment')}</Button></div>
-      <AIResponseBox loading={aiState.loading} response={aiState.response} type={aiState.type} onClose={() => setAiState({ loading: false, response: null, type: null })} />
       </div>
     )}
 
