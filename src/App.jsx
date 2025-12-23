@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, RefreshCw } from 'lucide-react';
+import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, RefreshCw } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- VERSIÓ ---
-const APP_VERSION = "v1.5 (2025-12-23)";
+const APP_VERSION = "v1.8 (2025-12-23)";
 
 // ******************************************************************************************
 // *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
@@ -27,14 +27,31 @@ const MY_APP_ID = 'xok-webapp';
 // *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-const firebaseConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
-const appId = (typeof __app_id !== 'undefined') ? __app_id : MY_APP_ID;
+// Lògica de configuració segura
+let firebaseConfig = MY_FIREBASE_CONFIG;
+let appId = MY_APP_ID;
+
+try {
+  if (typeof __firebase_config !== 'undefined') {
+    const autoConfig = JSON.parse(__firebase_config);
+    if (autoConfig) {
+      firebaseConfig = autoConfig;
+      appId = typeof __app_id !== 'undefined' ? __app_id : MY_APP_ID;
+    }
+  }
+} catch (e) {
+  // Ignorar error
+}
 
 let app, auth, db;
 try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
+  if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "POSA_LA_TEVA_API_KEY_AQUI") {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  } else {
+    console.warn("Firebase no configurat. Mode Offline.");
+  }
 } catch (error) {
   console.error("Error inicialitzant Firebase.", error);
 }
@@ -116,7 +133,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tauró", rotate_hint: "Clica direcció",
     you_are: "Ets el jugador",
     err_full: "Sala plena o no existeix.", err_auth: "Error d'autenticació.",
-    err_create: "Error creant la sala. Revisa connexió.",
+    err_create: "Error creant la sala. Revisa connexió.", err_firebase_missing: "Sense configuració Firebase. Només Local.",
     local_mode_badge: "MODE LOCAL", online_mode_badge: "EN LÍNIA", ai_mode_badge: "MODE CPU",
     tap_confirm: "Clica de nou per confirmar",
     instr_fish_1: "Col·loca el primer peix",
@@ -153,7 +170,7 @@ const TRANSLATIONS = {
     config_shark: "Shark Config", rotate_hint: "Click direction",
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
-    err_create: "Error creating room. Check connection.",
+    err_create: "Error creating room. Check connection.", err_firebase_missing: "Missing Firebase config. Local only.",
     local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE", ai_mode_badge: "CPU MODE",
     tap_confirm: "Tap again to confirm",
     instr_fish_1: "Place the first fish",
@@ -190,7 +207,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
-    err_create: "Error creando sala. Revisa conexión.",
+    err_create: "Error creando sala. Revisa conexión.", err_firebase_missing: "Falta config Firebase. Solo local.",
     local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA", ai_mode_badge: "MODO CPU",
     tap_confirm: "Pulsa de nuevo para confirmar",
     instr_fish_1: "Coloca el primer pez",
@@ -209,19 +226,6 @@ const TRANSLATIONS = {
     link_bgg: "Ver en BoardGameGeek",
     link_publisher: "Web oficial (Steffen Spiele)"
   }
-};
-
-// --- API IA ---
-const callGeminiAPI = async (prompt) => {
-  const apiKey = "";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-  const payload = { contents: [{ parts: [{ text: prompt }] }] };
-  try {
-    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) throw new Error('API Error');
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Error.";
-  } catch (error) { return "Error."; }
 };
 
 // --- COMPONENTS UI ---
@@ -246,17 +250,6 @@ const Modal = ({ title, children, onClose }) => (
   </div>
 );
 
-const AIResponseBox = ({ loading, response, type, onClose }) => {
-  if (!loading && !response) return null;
-  return (
-    <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 shadow-inner relative animate-in slide-in-from-top-4">
-    <div className="flex items-center gap-2 mb-2 text-indigo-700 font-bold uppercase text-xs tracking-widest"><Sparkles size={14} /> {type === 'tactics' ? 'Consell' : 'Comentar'}</div>
-    {loading ? <div className="text-slate-500 text-xs animate-pulse">...</div> : <div className="text-slate-700 text-sm leading-relaxed">{response}</div>}
-    {!loading && <button onClick={onClose} className="absolute top-2 right-2 text-indigo-300 hover:text-indigo-500"><X size={16} /></button>}
-    </div>
-  );
-};
-
 // --- SUBCOMPONENTS ---
 
 const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
@@ -268,9 +261,9 @@ const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-500"/> <b>{supply.white.shark_small}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-500"/> <b>{supply.white.shark_big_60 + supply.white.shark_big_120 + supply.white.shark_big_180}</b></div>
   </div>
-  <div className={`mt-2 pt-1 border-t border-slate-100 flex justify-between items-center ${chainLengths.white >= 10 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>
+  <div className={`mt-2 pt-1 border-t border-slate-100 flex justify-between items-center ${chainLengths.white.size >= 10 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>
   <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
-  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.white}</span>
+  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.white.size}</span>
   </div>
   </div>
   <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.BLACK ? 'bg-slate-900 text-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
@@ -280,9 +273,9 @@ const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-400"/> <b>{supply.black.shark_small}</b></div>
   <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-400"/> <b>{supply.black.shark_big_60 + supply.black.shark_big_120 + supply.black.shark_big_180}</b></div>
   </div>
-  <div className={`mt-2 pt-1 border-t border-slate-700 flex justify-between items-center ${chainLengths.black >= 10 ? 'text-green-400 font-bold' : 'text-slate-300'}`}>
+  <div className={`mt-2 pt-1 border-t border-slate-700 flex justify-between items-center ${chainLengths.black.size >= 10 ? 'text-green-400 font-bold' : 'text-slate-300'}`}>
   <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
-  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.black}</span>
+  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.black.size}</span>
   </div>
   </div>
   </div>
@@ -362,7 +355,6 @@ export default function XokGameHex() {
   const [selectedAction, setSelectedAction] = useState(null);
   const [tempMove, setTempMove] = useState({});
   const [confirmMove, setConfirmMove] = useState(null);
-  const [aiState, setAiState] = useState({ loading: false, response: null, type: null });
   const [hoverCell, setHoverCell] = useState(null);
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
   const [boardScale, setBoardScale] = useState(1);
@@ -395,14 +387,13 @@ export default function XokGameHex() {
   }, []);
 
   useEffect(() => {
-    const initAuth = async () => { try { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } } catch(e) { console.warn("Auth failed", e); } };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
+    const initAuth = async () => { try { if (auth && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else if (auth) { await signInAnonymously(auth); } } catch(e) { console.warn("Auth failed", e); } };
+    if (auth) initAuth();
+    if (auth) { const unsubscribe = onAuthStateChanged(auth, setUser); return () => unsubscribe(); }
   }, []);
 
   useEffect(() => {
-    if (!user || !roomId || isLocal || isAI) return;
+    if (!user || !roomId || isLocal || isAI || !db) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', roomId);
     const unsubscribe = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -710,11 +701,17 @@ export default function XokGameHex() {
     const isEmergency = opponentChain >= 6;
     const isOpportunity = myChain >= 8;
 
+    // Early game passive play: If opponent < 5 and I < 8, relax
+    const isEarlyGame = opponentChain < 5 && myChain < 8;
+
     // 2. SHARK EVALUATION FUNCTION
-    // Returns a move if good, else null
     const evaluateSharkMove = (minEaten = 1, criticalOnly = false) => {
       for (const sType of sharkTypes) {
         if (supply[cpuColor][sType] > 0) {
+          // For BIG SHARKS, try to eat 3 unless critical
+          const isBig = sType !== PIECE_TYPES.SHARK_SMALL;
+          const targetEat = (isBig && !criticalOnly) ? 3 : minEaten;
+
           for (const cell of shuffledBoard) {
             if (cell.owner === cpuColor || (cell.type && cell.type.includes('shark'))) continue;
 
@@ -734,7 +731,7 @@ export default function XokGameHex() {
 
                 // Bonus for eating under
                 const score = eaten + (eatsUnder ? 0.5 : 0);
-                const threshold = minEaten + (eatsUnder ? 0.5 : 0);
+                const threshold = targetEat + (eatsUnder ? 0.5 : 0);
 
                 if (score >= threshold) {
                   return { type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten };
@@ -753,12 +750,8 @@ export default function XokGameHex() {
       bestMove = evaluateSharkMove(1, true);
     }
 
-    // B. High Value Attack (Eat 2+)
-    if (!bestMove) {
-      bestMove = evaluateSharkMove(2, false);
-    }
-
-    // C. Strategic Fish Placement
+    // B. Strategic Fish Placement (Priority in Early Game)
+    // Try to place fish even if shark possible, to save sharks for later
     if (!bestMove && supply[cpuColor].fish >= 2) {
       const occupied = board.filter(c => c.type);
       let candidates = [];
@@ -782,9 +775,16 @@ export default function XokGameHex() {
         if (validNeighbors.length > 0) {
           const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
           bestMove = { type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r };
-          break;
+          // If early game, we prefer fish over shark search below, so break and use this
+          if (isEarlyGame) break;
+          // If not early game, we might still prefer shark if good opportunity found below
         }
       }
+    }
+
+    // C. High Value Attack (Eat 2+) - Only if not early game or if we didn't find fish move
+    if (!bestMove && !isEarlyGame) {
+      bestMove = evaluateSharkMove(2, false);
     }
 
     // D. Desperate Shark (Eat 1)
@@ -795,7 +795,7 @@ export default function XokGameHex() {
     if (bestMove) {
       executeAIMoveAction(bestMove);
     } else {
-      // If absolutely no move, AI passes (effectively ends game via next check)
+      // Pass/Stalemate
       endTurnDB(board, supply);
     }
   };
@@ -1008,11 +1008,11 @@ export default function XokGameHex() {
       <div className="flex items-center gap-2 mb-2 text-teal-700 font-black uppercase text-sm"><Trophy size={18} /> {t('game_over')}</div>
       <div className="text-2xl font-black text-slate-800 mb-2">{winner === 'DRAW' ? t('tie_msg') : `${winner === PLAYERS.WHITE ? t('white') : t('black')} ${t('win_msg')}`}</div>
       <div className="text-xs text-teal-600 font-bold mb-4">{winReason}</div>
-      <Button onClick={handleRestart} className="w-full shadow-teal-500/20"><RefreshCw size={16}/> {t('play_again')}</Button>
+      <Button onClick={handleRestart} className="w-full shadow-teal-500/20"><RotateCw size={16}/> {t('play_again')}</Button>
       </div>
     )}
 
-    {!winner && (isLocal || turn === playerColor || (isAI && turn === PLAYERS.WHITE)) && (
+    {!winner && (
       <div className="space-y-2 pt-2 border-t border-slate-100">
       <h3 className="font-bold text-slate-400 text-[10px] uppercase tracking-widest hidden md:block">{t('actions')}</h3>
       <div className="flex gap-2 md:flex-col">
@@ -1028,6 +1028,11 @@ export default function XokGameHex() {
       {selectedAction === 'fish' && <div className="mt-2 p-2 bg-teal-50 text-teal-800 text-[10px] md:text-xs rounded-lg border border-teal-100 flex gap-2"><Info size={14} className="shrink-0 mt-0.5" />{phase === 'PLACING_FISH_1' ? t('instr_fish_1') : t('instr_fish_2')}</div>}
       </div>
     )}
+
+    <div className="flex gap-2 mt-auto pt-4">
+    <Button variant="outline" className="flex-1 py-2 text-xs" onClick={() => setShowRules(true)}><BookOpen size={16} /> {t('rules')}</Button>
+    </div>
+    <div className="text-[10px] text-slate-300 text-center pt-2">{APP_VERSION}</div>
     </div>
     </div>
 
@@ -1045,6 +1050,7 @@ export default function XokGameHex() {
     <div><h4 className="font-bold text-teal-700">{t('rules_action1_title')}</h4><p>{t('rules_action1_desc')}</p></div>
     <div><h4 className="font-bold text-rose-700">{t('rules_action2_title')}</h4><p>{t('rules_action2_desc')}</p><p className="mt-2 text-xs bg-rose-50 p-2 rounded text-rose-800">{t('rules_shark_eat')}</p></div>
     <p className="text-xs text-slate-400 italic border-t pt-2">{t('rules_shark_types')}</p>
+    <div><h4 className="font-bold text-slate-700">{t('rules_end_condition')}</h4></div>
     <div className="mt-4 pt-4 border-t border-slate-200">
     <h4 className="font-bold text-slate-700 mb-2">{t('rules_links_title')}</h4>
     <div className="flex flex-col gap-2 text-xs">
