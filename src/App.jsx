@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- VERSIÓ ---
-const APP_VERSION = "v2.7 (Polished UI)";
+const APP_VERSION = "v2.16 (Touch Fix Final)";
 
 // ******************************************************************************************
 // *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
@@ -18,6 +18,7 @@ const MY_FIREBASE_CONFIG = {
   storageBucket: "xok-webapp.firebasestorage.app",
   messagingSenderId: "568536806614",
   appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
+  measurementId: "G-2YB656ZKPN"
 };
 
 const MY_APP_ID = 'xok-webapp';
@@ -26,7 +27,7 @@ const MY_APP_ID = 'xok-webapp';
 // *** FI DE LA ZONA D'EDICIÓ ***
 // ******************************************************************************************
 
-// --- FIREBASE INIT ---
+// Lògica de configuració segura
 let firebaseConfig = MY_FIREBASE_CONFIG;
 let appId = MY_APP_ID;
 
@@ -53,6 +54,15 @@ try {
   console.error("Error inicialitzant Firebase.", error);
 }
 
+// --- ICONA PERSONALITZADA: TAURÓ ---
+const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
+  <path d="M14 5c.5 2 1 4 2 6" />
+  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
+  </svg>
+);
+
 // --- CONSTANTS ---
 const PLAYERS = { WHITE: 'white', BLACK: 'black' };
 const PIECE_TYPES = {
@@ -63,18 +73,35 @@ const PIECE_TYPES = {
   SHARK_BIG_180: 'shark_big_180',
 };
 
+// --- COMPONENT: INDICADOR DE BOQUES ---
+const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
+  const points = [];
+  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
+    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
+    </svg>
+  );
+};
+
 const INITIAL_SUPPLY = {
   [PLAYERS.WHITE]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
   [PLAYERS.BLACK]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
 };
 const WINNING_CHAIN = 10;
+
+// --- GEOMETRIA HEXAGONAL ---
 const LAYOUT_SIZE = 60;
 const DRAW_SIZE = 56;
 const HEX_WIDTH = Math.sqrt(3) * DRAW_SIZE;
 const HEX_HEIGHT = 2 * DRAW_SIZE;
 const hexToPixel = (q, r) => ({ x: LAYOUT_SIZE * Math.sqrt(3) * (q + r/2), y: LAYOUT_SIZE * (3/2) * r });
-const BOARD_CENTER = { q: -2, r: 3 };
-const getDistance = (q1, r1, q2, r2) => (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
 
 const generateBoardCells = () => {
   const cells = [];
@@ -83,6 +110,8 @@ const generateBoardCells = () => {
   return cells;
 };
 const getNeighbors = (q, r) => [{dq: 1, dr: 0}, {dq: 1, dr: -1}, {dq: 0, dr: -1}, {dq: -1, dr: 0}, {dq: -1, dr: 1}, {dq: 0, dr: 1}].map(d => ({ q: q + d.dq, r: r + d.dr }));
+const BOARD_CENTER = { q: -2, r: 3 };
+const getDistance = (q1, r1, q2, r2) => (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
 
 // --- TRADUCCIONS ---
 const TRANSLATIONS = {
@@ -117,7 +146,7 @@ const TRANSLATIONS = {
     rules_action2_title: "Acció 2: Jugar 1 Tauró",
     rules_action2_desc: "Col·loca un tauró en una casella buida O sobre un peix de l'oponent.",
     rules_shark_eat: "Important: El tauró HA DE menjar almenys un peix enemic. Menja el peix que té a sota i els que assenyalen les seves boques. Els peixos menjats tornen a la reserva del rival.",
-    rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 boques amb angles fixos: 60°, 120°, 180°).",
+    rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 bocas amb angles fixos: 60°, 120°, 180°).",
     rules_end_condition: "Si un jugador no pot fer un moviment vàlid, la partida s'acaba. Guanya qui tingui la cadena més llarga. En cas d'empat, guanya qui tingui més taurons a la cadena. Si persisteix l'empat, guanyeu tots dos.",
     rules_links_title: "Enllaços d'interès",
     link_bgg: "Veure a BoardGameGeek",
@@ -199,32 +228,7 @@ const TRANSLATIONS = {
   }
 };
 
-// --- COMPONENTS VISUALS ---
-
-const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
-  <path d="M14 5c.5 2 1 4 2 6" />
-  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
-  </svg>
-);
-
-const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
-  const points = [];
-  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
-    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
-    </svg>
-  );
-};
-
+// --- COMPONENTS UI ---
 const Button = ({ onClick, disabled, children, className = "", variant = "primary" }) => {
   const variants = {
     primary: "bg-teal-600 text-white hover:bg-teal-500 disabled:bg-slate-500 disabled:opacity-50 disabled:shadow-none shadow-teal-900/30",
@@ -233,11 +237,11 @@ const Button = ({ onClick, disabled, children, className = "", variant = "primar
     magic: "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-purple-900/20",
     ghost: "bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm border border-white/10"
   };
-  return <button onClick={onClick} disabled={disabled} className={`px-4 py-3 rounded-xl font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2 shadow-lg text-sm ${variants[variant]} ${className}`}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} className={`px-4 py-3 rounded-xl font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2 shadow-lg text-sm ${variants[variant]} ${className} pointer-events-auto`}>{children}</button>;
 };
 
 const Modal = ({ title, children, onClose }) => (
-  <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+  <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md pointer-events-auto">
   <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-300 border border-white/20 relative max-h-[90vh] overflow-y-auto">
   <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={24} /></button>
   <h3 className="text-3xl font-black text-slate-800 mb-6 font-mono uppercase tracking-tighter text-center">{title}</h3>
@@ -248,7 +252,7 @@ const Modal = ({ title, children, onClose }) => (
 
 // --- SUBCOMPONENTS ---
 
-// Single Player Card (Refined)
+// Single Player Card
 const SupplyCard = ({ player, supply, chainLength, isTurn, isLocal, isAI, t, className="" }) => {
   const isWhite = player === PLAYERS.WHITE;
   const label = isWhite ? t('white') : t('black');
@@ -256,41 +260,38 @@ const SupplyCard = ({ player, supply, chainLength, isTurn, isLocal, isAI, t, cla
   const isBot = isAI && player === PLAYERS.BLACK;
 
   return (
-    <div className={`p-3 rounded-xl backdrop-blur-md border transition-all shadow-lg w-full max-w-[160px] ${isTurn ? (isWhite ? 'bg-white/90 border-teal-400 ring-2 ring-teal-400/50 text-slate-900' : 'bg-slate-900/90 border-teal-400 ring-2 ring-teal-400/50 text-white') : 'bg-black/30 border-white/10 text-white/60'} ${className}`}>
-    <div className="font-black text-xs mb-2 flex items-center justify-center gap-1 uppercase tracking-wider">
-    {label} {isBot && <Bot size={14}/>} {isPlayer && "(TU)"}
+    <div className={`p-2 rounded-xl backdrop-blur-md border transition-all shadow-lg w-32 pointer-events-auto ${isTurn ? (isWhite ? 'bg-white/90 border-teal-400 ring-2 ring-teal-400/50 text-slate-900' : 'bg-slate-900/90 border-teal-400 ring-2 ring-teal-400/50 text-white') : 'bg-black/30 border-white/10 text-white/60'} ${className}`}>
+    <div className="font-black text-[10px] mb-1 flex items-center justify-center gap-1 uppercase tracking-wider">
+    {label} {isBot && <Bot size={12}/>} {isPlayer && "(TU)"}
     </div>
 
-    <div className="grid grid-cols-1 gap-1 text-xs">
-    {/* Fish */}
-    <div className="flex justify-between items-center bg-black/10 rounded px-2 py-1">
-    <div className="flex items-center gap-1"><Fish size={14} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"}/></div>
+    <div className="grid grid-cols-1 gap-1 text-[10px]">
+    <div className="flex justify-between items-center bg-black/10 rounded px-1.5 py-0.5">
+    <div className="flex items-center gap-1"><Fish size={12} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"}/></div>
     <b>{supply.fish}</b>
     </div>
-    {/* Small Sharks - Now with Shark Icon */}
-    <div className="flex justify-between items-center bg-black/10 rounded px-2 py-1">
+    <div className="flex justify-between items-center bg-black/10 rounded px-1.5 py-0.5">
     <div className="flex items-center gap-1">
-    <SharkIcon size={12} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"} />
-    <SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"}/>
+    <SharkIcon size={10} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"} />
+    <SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={12} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"}/>
     </div>
     <b>{supply.shark_small}</b>
     </div>
-    {/* Big Sharks - Now with Shark Icon */}
-    <div className="flex justify-between items-center bg-black/10 rounded px-2 py-1">
+    <div className="flex justify-between items-center bg-black/10 rounded px-1.5 py-0.5">
     <div className="flex items-center gap-1">
-    <SharkIcon size={12} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"} />
-    <SharkMouthIcon type="GENERIC_BIG" size={14} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"}/>
+    <SharkIcon size={10} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"} />
+    <SharkMouthIcon type="GENERIC_BIG" size={12} className={isTurn ? (isWhite ? "text-slate-600" : "text-white") : "text-white/60"}/>
     </div>
     <b>{supply.shark_big_60 + supply.shark_big_120 + supply.shark_big_180}</b>
     </div>
     </div>
 
-    <div className={`mt-2 pt-1 border-t ${isTurn ? (isWhite ? 'border-slate-300' : 'border-white/20') : 'border-white/10'} flex justify-between items-center`}>
+    <div className={`mt-1 pt-1 border-t ${isTurn ? (isWhite ? 'border-slate-300' : 'border-white/20') : 'border-white/10'} flex justify-between items-center`}>
     <div className="flex items-center gap-1 opacity-70">
-    <LinkIcon size={12}/>
-    <span className="text-[9px] uppercase font-bold tracking-tighter">{t('chain')}</span>
+    <LinkIcon size={10}/>
+    <span className="text-[8px] uppercase font-bold tracking-tighter">{t('chain')}</span>
     </div>
-    <span className={`font-mono font-bold ${chainLength >= 10 ? 'text-green-500' : ''}`}>{chainLength}</span>
+    <span className={`font-mono font-bold text-xs ${chainLength >= 10 ? 'text-green-500' : ''}`}>{chainLength}</span>
     </div>
     </div>
   );
@@ -304,40 +305,39 @@ const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, cur
     const num = supply[turn][type];
     const isActive = currentType === type;
     const isDisabled = num === 0;
-    let base = `flex-1 py-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all `;
+    let base = `flex-1 py-1 rounded-lg border flex flex-col items-center justify-center gap-1 transition-all pointer-events-auto `;
     if (isActive) return base + 'bg-white border-white text-teal-700 shadow-md ring-2 ring-teal-400';
     if (isDisabled) return base + 'bg-white/5 border-transparent text-white/20 decoration-red-400/50 line-through decoration-2';
     return base + 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20';
   };
 
   return (
-    <div className="mt-2 p-3 bg-black/60 backdrop-blur-xl rounded-xl border border-white/10 animate-in slide-in-from-left-4 w-full">
-    <div className="flex justify-between items-center mb-2">
-    <h4 className="text-[9px] font-black uppercase text-white/50 tracking-wider">{t('config_shark')}</h4>
-    <div className="text-white text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-    <span>{t('supply')}:</span>
+    <div className="mt-2 p-2 bg-black/60 backdrop-blur-xl rounded-xl border border-white/10 animate-in slide-in-from-left-4 w-32 pointer-events-auto">
+    <div className="flex justify-between items-center mb-1">
+    <h4 className="text-[8px] font-black uppercase text-white/50 tracking-wider truncate">{t('config_shark')}</h4>
+    <div className="text-white text-[9px] font-bold bg-white/10 px-1 py-0 rounded flex items-center gap-1">
     <span className={count === 0 ? "text-red-400" : "text-teal-400"}>{count}</span>
     </div>
     </div>
 
-    <div className="grid grid-cols-4 gap-1 mb-2">
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_SMALL, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_SMALL)} disabled={supply[turn].shark_small === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={16}/></button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_60, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_60)} disabled={supply[turn].shark_big_60 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} size={16}/></button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_120, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_120)} disabled={supply[turn].shark_big_120 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} size={16}/></button>
-    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_180, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_180)} disabled={supply[turn].shark_big_180 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} size={16}/></button>
+    <div className="grid grid-cols-2 gap-1 mb-2">
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_SMALL, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_SMALL)} disabled={supply[turn].shark_small === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14}/></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_60, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_60)} disabled={supply[turn].shark_big_60 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} size={14}/></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_120, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_120)} disabled={supply[turn].shark_big_120 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} size={14}/></button>
+    <button onClick={() => setSharkSelection({type: PIECE_TYPES.SHARK_BIG_180, rotation: 0})} className={btnCls(PIECE_TYPES.SHARK_BIG_180)} disabled={supply[turn].shark_big_180 === 0}><SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} size={14}/></button>
     </div>
-    <div className="flex items-center justify-between gap-2">
-    <button onClick={() => rotate('ccw')} className="h-8 w-8 bg-white/10 rounded-full border border-white/20 text-white hover:bg-white/20 active:scale-95 flex items-center justify-center"><RotateCw size={14}/></button>
-    <div className="relative w-12 h-12 shrink-0">
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><SharkIcon size={24} color="#ffffff" /></div>
+    <div className="flex items-center justify-between gap-1">
+    <button onClick={() => rotate('ccw')} className="h-6 w-6 bg-white/10 rounded-full border border-white/20 text-white hover:bg-white/20 active:scale-95 flex items-center justify-center pointer-events-auto"><RotateCw size={12}/></button>
+    <div className="relative w-8 h-8 shrink-0">
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><SharkIcon size={20} color="#ffffff" /></div>
     {[0, 1, 2, 3, 4, 5].map(dir => {
       const rad = ((dir * 60 - 90) * Math.PI) / 180;
-      const x = Math.cos(rad) * 18 + 24 - 3;
-      const y = Math.sin(rad) * 18 + 24 - 3;
-      return <div key={dir} style={{ left: x, top: y }} className={`absolute w-1.5 h-1.5 rounded-full border transition-all ${currentMouths.includes(dir) ? 'bg-rose-500 border-rose-600 scale-150 shadow-sm' : 'bg-white/10 border-white/20'}`} />
+      const x = Math.cos(rad) * 12 + 16 - 2;
+      const y = Math.sin(rad) * 12 + 16 - 2;
+      return <div key={dir} style={{ left: x, top: y }} className={`absolute w-1 h-1 rounded-full border transition-all ${currentMouths.includes(dir) ? 'bg-rose-500 border-rose-600 scale-150 shadow-sm' : 'bg-white/10 border-white/20'}`} />
     })}
     </div>
-    <button onClick={() => rotate('cw')} className="h-8 w-8 bg-white/10 rounded-full border border-white/20 text-white hover:bg-white/20 active:scale-95 flex items-center justify-center"><RotateCcw size={14}/></button>
+    <button onClick={() => rotate('cw')} className="h-6 w-6 bg-white/10 rounded-full border border-white/20 text-white hover:bg-white/20 active:scale-95 flex items-center justify-center pointer-events-auto"><RotateCcw size={12}/></button>
     </div>
     </div>
   );
@@ -504,6 +504,7 @@ export default function XokGameHex() {
       if (currentSupply[player][sType] > 0) {
         for (const cell of currentBoard) {
           if (cell.owner === player || (cell.type && cell.type.includes('shark'))) continue;
+
           for (let rot=0; rot<6; rot++) {
             const mouths = getActiveMouths(sType, rot);
             let eaten = 0;
@@ -832,6 +833,7 @@ export default function XokGameHex() {
 
     const handleActionChange = (action) => { setSelectedAction(action); setPhase(action === 'fish' ? 'PLACING_FISH_1' : 'SELECT_ACTION'); setTempMove({}); setConfirmMove(null); };
 
+    // --- RENDER CELL DEFINITION INSIDE COMPONENT TO FIX SCOPE ---
     const renderCell = (cell) => {
       const { x, y } = hexToPixel(cell.q, cell.r);
 
@@ -902,7 +904,7 @@ export default function XokGameHex() {
     return (
       <div className="relative w-full h-screen bg-cyan-900 overflow-hidden flex flex-col">
 
-      {/* HEADER: TITLE, RULES, EXIT */}
+      {/* HEADER: TITLE & TURN */}
       <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-50 pointer-events-none">
       <div className="pointer-events-auto flex items-center gap-2">
       <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-3 py-1.5 rounded-full border border-white/10 text-white">
@@ -912,8 +914,6 @@ export default function XokGameHex() {
       {isLocal && <span className="text-[10px] bg-white/20 px-1 rounded text-white/80">LOCAL</span>}
       {!isLocal && !isAI && <span className="text-[10px] bg-green-500/40 px-1 rounded text-white/90">ONLINE</span>}
       </div>
-      <button onClick={() => setShowRules(true)} className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 flex items-center gap-2 text-white backdrop-blur border border-white/10 text-xs font-bold"><BookOpen size={14}/> {t('rules')}</button>
-      <button onClick={exitLobby} className="px-3 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center gap-2 text-red-200 backdrop-blur border border-red-500/20 text-xs font-bold"><LogOut size={14}/> {t('exit_lobby')}</button>
       </div>
 
       <div className={`pointer-events-auto px-6 py-2 rounded-2xl backdrop-blur-md shadow-2xl border transition-all transform hover:scale-105 absolute left-1/2 -translate-x-1/2 top-4 ${turn === PLAYERS.WHITE ? 'bg-white text-slate-900 border-white' : 'bg-slate-900 text-white border-slate-700'}`}>
@@ -924,30 +924,20 @@ export default function XokGameHex() {
       {isAI && turn === PLAYERS.BLACK && <Loader2 size={16} className="animate-spin ml-2 opacity-50"/>}
       </div>
       </div>
-
-      <div className="pointer-events-auto">
-      {!isLocal && !isAI && (
-        <div className="bg-black/40 backdrop-blur px-3 py-1.5 rounded-full border border-white/10 text-white text-xs font-mono flex items-center gap-2 cursor-pointer hover:bg-black/60" onClick={() => {navigator.clipboard.writeText(roomId); alert("Copiat!")}}>
-        <span>ID: {roomId}</span><Copy size={12}/>
-        </div>
-      )}
-      </div>
       </div>
 
       {/* LEFT PANEL: SUPPLY & CONTROLS */}
-      <div className="absolute top-24 left-4 bottom-4 z-40 pointer-events-auto w-48 flex flex-col gap-4">
+      <div className="absolute top-24 left-2 bottom-4 z-40 w-32 flex flex-col gap-4 pointer-events-none">
       <SupplyCard player={PLAYERS.WHITE} supply={supply.white} chainLength={chainLengths.white.size} isTurn={turn === PLAYERS.WHITE} isLocal={isLocal} isAI={isAI} t={t} />
 
       {!winner && (isLocal || turn === playerColor || (isAI && turn === PLAYERS.WHITE)) && (
-        <div className="flex flex-col gap-2 mt-auto">
+        <div className="flex flex-col gap-2 mt-auto pointer-events-auto">
         <div className="flex gap-2">
         <Button onClick={() => handleActionChange('fish')} disabled={supply[turn].fish < 2} className={`flex-1 flex-col py-3 gap-1 transition-all ${selectedAction === 'fish' ? 'bg-teal-500 text-white shadow-teal-500/50' : 'bg-black/40 text-white/60 border border-white/10'}`} variant={selectedAction === 'fish' ? 'primary' : 'ghost'}>
-        <Fish size={20} />
-        <span className="text-[10px] font-bold">{t('fish_btn')}</span>
+        <div className="flex items-center gap-2"><Fish size={20}/> {t('fish_btn')}</div>
         </Button>
         <Button onClick={() => handleActionChange('shark')} disabled={supply[turn].shark_small === 0 && supply[turn].shark_big_60 === 0 && supply[turn].shark_big_120 === 0 && supply[turn].shark_big_180 === 0} className={`flex-1 flex-col py-3 gap-1 transition-all ${selectedAction === 'shark' ? 'bg-rose-500 text-white shadow-rose-500/50' : 'bg-black/40 text-white/60 border border-white/10'}`} variant={selectedAction === 'shark' ? 'primary' : 'ghost'}>
-        <SharkIcon size={20} />
-        <span className="text-[10px] font-bold">{t('shark_btn')}</span>
+        <div className="flex items-center gap-2"><SharkIcon size={20} /> {t('shark_btn')}</div>
         </Button>
         </div>
 
@@ -958,17 +948,27 @@ export default function XokGameHex() {
       </div>
 
       {/* RIGHT PANEL: BLACK SUPPLY & VERSION */}
-      <div className="absolute top-24 right-4 bottom-4 z-40 pointer-events-auto w-48 flex flex-col items-end justify-between pointer-events-none">
-      <div className="pointer-events-auto w-full">
+      <div className="absolute top-24 right-2 bottom-4 z-40 w-32 flex flex-col items-end justify-between pointer-events-none">
+      <div className="w-full pointer-events-auto">
       <SupplyCard player={PLAYERS.BLACK} supply={supply.black} chainLength={chainLengths.black.size} isTurn={turn === PLAYERS.BLACK} isLocal={isLocal} isAI={isAI} t={t} />
       </div>
-      <div className="text-[10px] text-white/30 font-mono text-right">{APP_VERSION}</div>
+      <div className="flex flex-col items-end gap-2 w-full pointer-events-auto">
+      <div className="flex flex-col gap-2 w-full">
+      <button onClick={() => setShowRules(true)} className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-end gap-2 text-white backdrop-blur border border-white/10 text-xs font-bold transition-all shadow-lg w-full">
+      {t('rules')} <BookOpen size={16}/>
+      </button>
+      <button onClick={exitLobby} className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-end gap-2 text-red-100 backdrop-blur border border-red-500/20 text-xs font-bold transition-all shadow-lg w-full">
+      {t('exit_lobby')} <LogOut size={16}/>
+      </button>
+      </div>
+      <div className="text-[10px] text-white/30 font-mono text-right mt-2 w-full">{APP_VERSION}</div>
+      </div>
       </div>
 
       {/* BOARD CENTER */}
-      <div className="absolute inset-0 flex items-center justify-center z-10 pl-0 md:pl-0">
-      <div style={{ transform: `scale(${boardScale})` }} className="transition-transform duration-300">
-      <div className="relative w-[800px] h-[800px] pointer-events-auto">
+      <div className="absolute inset-0 flex items-center justify-center z-10 pl-0 md:pl-0 pointer-events-none">
+      <div style={{ transform: `scale(${boardScale})` }} className="transition-transform duration-300 pointer-events-auto">
+      <div className="relative w-[800px] h-[800px]">
       {board.map(cell => renderCell(cell))}
       </div>
       </div>
