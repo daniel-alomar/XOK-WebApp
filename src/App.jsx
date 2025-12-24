@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, RefreshCw } from 'lucide-react';
+import { Fish, Trophy, Info, Sparkles, BrainCircuit, MessageSquare, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, RefreshCw } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- VERSIÓ ---
-const APP_VERSION = "v1.8 (2025-12-23)";
+const APP_VERSION = "v2.0 (IA Optimitzada)";
 
 // ******************************************************************************************
 // *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
@@ -18,7 +18,6 @@ const MY_FIREBASE_CONFIG = {
   storageBucket: "xok-webapp.firebasestorage.app",
   messagingSenderId: "568536806614",
   appId: "1:568536806614:web:4ffa0d7fd805166bbd8577",
-  measurementId: "G-2YB656ZKPN"
 };
 
 const MY_APP_ID = 'xok-webapp';
@@ -56,15 +55,6 @@ try {
   console.error("Error inicialitzant Firebase.", error);
 }
 
-// --- ICONA PERSONALITZADA: TAURÓ ---
-const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
-  <path d="M14 5c.5 2 1 4 2 6" />
-  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
-  </svg>
-);
-
 // --- CONSTANTS ---
 const PLAYERS = { WHITE: 'white', BLACK: 'black' };
 const PIECE_TYPES = {
@@ -74,24 +64,6 @@ const PIECE_TYPES = {
   SHARK_BIG_120: 'shark_big_120',
   SHARK_BIG_180: 'shark_big_180',
 };
-
-// --- COMPONENT: INDICADOR DE BOQUES ---
-const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
-  const points = [];
-  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
-  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
-    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
-    </svg>
-  );
-};
-
 const INITIAL_SUPPLY = {
   [PLAYERS.WHITE]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
   [PLAYERS.BLACK]: { fish: 14, shark_small: 3, shark_big_60: 1, shark_big_120: 1, shark_big_180: 1 },
@@ -112,6 +84,8 @@ const generateBoardCells = () => {
   return cells;
 };
 const getNeighbors = (q, r) => [{dq: 1, dr: 0}, {dq: 1, dr: -1}, {dq: 0, dr: -1}, {dq: -1, dr: 0}, {dq: -1, dr: 1}, {dq: 0, dr: 1}].map(d => ({ q: q + d.dq, r: r + d.dr }));
+const BOARD_CENTER = { q: -2, r: 3 };
+const getDistance = (q1, r1, q2, r2) => (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
 
 // --- TRADUCCIONS ---
 const TRANSLATIONS = {
@@ -170,7 +144,7 @@ const TRANSLATIONS = {
     config_shark: "Shark Config", rotate_hint: "Click direction",
     you_are: "You are",
     err_full: "Room full or not found.", err_auth: "Auth error.",
-    err_create: "Error creating room. Check connection.", err_firebase_missing: "Missing Firebase config. Local only.",
+    err_create: "Error creating room. Check connection.",
     local_mode_badge: "LOCAL MODE", online_mode_badge: "ONLINE", ai_mode_badge: "CPU MODE",
     tap_confirm: "Tap again to confirm",
     instr_fish_1: "Place the first fish",
@@ -207,7 +181,7 @@ const TRANSLATIONS = {
     config_shark: "Configurar Tiburón", rotate_hint: "Clic dirección",
     you_are: "Eres el jugador",
     err_full: "Sala llena o no existe.", err_auth: "Error de autenticación.",
-    err_create: "Error creando sala. Revisa conexión.", err_firebase_missing: "Falta config Firebase. Solo local.",
+    err_create: "Error creando sala. Revisa conexión.",
     local_mode_badge: "MODO LOCAL", online_mode_badge: "EN LÍNEA", ai_mode_badge: "MODO CPU",
     tap_confirm: "Pulsa de nuevo para confirmar",
     instr_fish_1: "Coloca el primer pez",
@@ -228,7 +202,33 @@ const TRANSLATIONS = {
   }
 };
 
-// --- COMPONENTS UI ---
+// --- COMPONENTS ---
+
+// Shark Icon component for SVG
+const SharkIcon = ({ size = 24, className = "", color = "currentColor", fill="none" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" />
+  <path d="M14 5c.5 2 1 4 2 6" />
+  <circle cx="18" cy="11" r="1" fill={color} stroke="none" />
+  </svg>
+);
+
+const SharkMouthIcon = ({ type, size = 20, className = "" }) => {
+  const points = [];
+  if (type === PIECE_TYPES.SHARK_SMALL) { points.push({ cx: 12, cy: 4 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_60) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 8 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_120) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 19, cy: 16 }); }
+  else if (type === PIECE_TYPES.SHARK_BIG_180) { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+  else if (type === 'GENERIC_BIG') { points.push({ cx: 12, cy: 4 }); points.push({ cx: 12, cy: 20 }); }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-30" />
+    {points.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r="3" fill="#f43f5e" />)}
+    </svg>
+  );
+};
+
 const Button = ({ onClick, disabled, children, className = "", variant = "primary" }) => {
   const variants = {
     primary: "bg-teal-600 text-white hover:bg-teal-500 disabled:bg-slate-300 disabled:shadow-none shadow-teal-900/20",
@@ -250,36 +250,39 @@ const Modal = ({ title, children, onClose }) => (
   </div>
 );
 
-// --- SUBCOMPONENTS ---
+const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => {
+  const whiteSize = chainLengths?.white?.size || 0;
+  const blackSize = chainLengths?.black?.size || 0;
 
-const SupplyBoard = ({ turn, supply, chainLengths, playerColor, isLocal, isAI, t }) => (
-  <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-  <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.WHITE ? 'bg-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
-  <div className="font-black text-slate-800 text-sm mb-2 flex items-center justify-center gap-1">{t('white')} {(playerColor === PLAYERS.WHITE && !isLocal) || (isAI && playerColor === PLAYERS.WHITE) ? " (TU)" : ""}</div>
-  <div className="flex flex-col gap-1 text-xs mb-2 items-center">
-  <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.white.fish}</b></div>
-  <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-500"/> <b>{supply.white.shark_small}</b></div>
-  <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-500"/> <b>{supply.white.shark_big_60 + supply.white.shark_big_120 + supply.white.shark_big_180}</b></div>
-  </div>
-  <div className={`mt-2 pt-1 border-t border-slate-100 flex justify-between items-center ${chainLengths.white.size >= 10 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>
-  <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
-  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.white.size}</span>
-  </div>
-  </div>
-  <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.BLACK ? 'bg-slate-900 text-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
-  <div className="font-black text-white text-sm mb-2 flex items-center justify-center gap-1">{t('black')} {isAI ? <Bot size={14} className="ml-1"/> : ((playerColor === PLAYERS.BLACK && !isLocal) && "(TU)")}</div>
-  <div className="flex flex-col gap-1 text-xs mb-2 items-center">
-  <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.black.fish}</b></div>
-  <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-400"/> <b>{supply.black.shark_small}</b></div>
-  <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-400"/> <b>{supply.black.shark_big_60 + supply.black.shark_big_120 + supply.black.shark_big_180}</b></div>
-  </div>
-  <div className={`mt-2 pt-1 border-t border-slate-700 flex justify-between items-center ${chainLengths.black.size >= 10 ? 'text-green-400 font-bold' : 'text-slate-300'}`}>
-  <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
-  <span className="flex items-center gap-1"><LinkIcon size={12}/> {chainLengths.black.size}</span>
-  </div>
-  </div>
-  </div>
-);
+  return (
+    <div className="grid grid-cols-2 gap-3 mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+    <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.WHITE ? 'bg-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
+    <div className="font-black text-slate-800 text-sm mb-2 flex items-center justify-center gap-1">{t('white')} {(playerColor === PLAYERS.WHITE && !isLocal) || (isAI && playerColor === PLAYERS.WHITE) ? " (TU)" : ""}</div>
+    <div className="flex flex-col gap-1 text-xs mb-2 items-center">
+    <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.white.fish}</b></div>
+    <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-500"/> <b>{supply.white.shark_small}</b></div>
+    <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-500"/> <b>{supply.white.shark_big_60 + supply.white.shark_big_120 + supply.white.shark_big_180}</b></div>
+    </div>
+    <div className={`mt-2 pt-1 border-t border-slate-100 flex justify-between items-center ${whiteSize >= 10 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>
+    <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
+    <span className="flex items-center gap-1"><LinkIcon size={12}/> {whiteSize}</span>
+    </div>
+    </div>
+    <div className={`text-center p-2 rounded-xl transition-all ${turn === PLAYERS.BLACK ? 'bg-slate-900 text-white shadow-md ring-2 ring-teal-500' : 'opacity-50 grayscale'}`}>
+    <div className="font-black text-white text-sm mb-2 flex items-center justify-center gap-1">{t('black')} {isAI ? <Bot size={14} className="ml-1"/> : ((playerColor === PLAYERS.BLACK && !isLocal) && "(TU)")}</div>
+    <div className="flex flex-col gap-1 text-xs mb-2 items-center">
+    <div className="flex justify-between items-center w-full px-4"><Fish size={14}/> <b>{supply.black.fish}</b></div>
+    <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={14} className="text-slate-400"/> <b>{supply.black.shark_small}</b></div>
+    <div className="flex justify-between items-center w-full px-4 mt-1"><SharkMouthIcon type="GENERIC_BIG" size={14} className="text-slate-400"/> <b>{supply.black.shark_big_60 + supply.black.shark_big_120 + supply.black.shark_big_180}</b></div>
+    </div>
+    <div className={`mt-2 pt-1 border-t border-slate-700 flex justify-between items-center ${blackSize >= 10 ? 'text-green-400 font-bold' : 'text-slate-300'}`}>
+    <span className="text-[10px] uppercase font-bold tracking-tighter">{t('chain')}</span>
+    <span className="flex items-center gap-1"><LinkIcon size={12}/> {blackSize}</span>
+    </div>
+    </div>
+    </div>
+  );
+};
 
 const SharkConfigPanel = ({ sharkSelection, setSharkSelection, supply, turn, currentMouths, t }) => {
   const rotate = (direction) => setSharkSelection(prev => ({ ...prev, rotation: direction === 'cw' ? (prev.rotation + 1) % 6 : (prev.rotation + 5) % 6 }));
@@ -359,7 +362,22 @@ export default function XokGameHex() {
   const [sharkSelection, setSharkSelection] = useState({ type: PIECE_TYPES.SHARK_SMALL, rotation: 0 });
   const [boardScale, setBoardScale] = useState(1);
   const [showRules, setShowRules] = useState(false);
-  const [viewingEndGame, setViewingEndGame] = useState(false);
+
+  // Set Favicon Dynamically
+  useEffect(() => {
+    const setFavicon = () => {
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" /><path d="M14 5c.5 2 1 4 2 6" /><circle cx="18" cy="11" r="1" fill="#0d9488" stroke="none" /></svg>`;
+      const blob = new Blob([svgString], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/svg+xml';
+      link.rel = 'shortcut icon';
+      link.href = url;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    };
+    setFavicon();
+  }, []);
+
 
   const getBrowserLang = () => {
     const navLang = navigator.language || navigator.userLanguage;
@@ -416,8 +434,6 @@ export default function XokGameHex() {
     }, (error) => console.error("Error sync:", error));
     return () => unsubscribe();
   }, [user, roomId, isLocal, isAI, turn]);
-
-  // --- FUNCIONS DEL JOC I IA ---
 
   const calculateChains = useCallback((currentBoard) => {
     const visited = new Set();
@@ -479,9 +495,7 @@ export default function XokGameHex() {
 
   const chainLengths = useMemo(() => calculateChains(board).maxChains, [board, calculateChains]);
 
-  // STALEMATE CHECK
   const canPlayerMove = (player, currentBoard, currentSupply) => {
-    // 1. Can place fish? (Needs >=2 fish and 2 empty adjacent cells)
     if (currentSupply[player].fish >= 2) {
       const emptyCells = currentBoard.filter(c => !c.type);
       for (const cell of emptyCells) {
@@ -493,7 +507,6 @@ export default function XokGameHex() {
       }
     }
 
-    // 2. Can place shark? (Needs shark > 0 AND eat >= 1)
     const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
     const opponent = player === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
 
@@ -501,8 +514,6 @@ export default function XokGameHex() {
       if (currentSupply[player][sType] > 0) {
         for (const cell of currentBoard) {
           if (cell.owner === player || (cell.type && cell.type.includes('shark'))) continue;
-
-          // Check if eating is possible in any rotation
           for (let rot=0; rot<6; rot++) {
             const mouths = getActiveMouths(sType, rot);
             let eaten = 0;
@@ -524,18 +535,15 @@ export default function XokGameHex() {
   const checkWinLocal = (currentBoard, currentSupply) => {
     const { maxChains, winCells } = calculateChains(currentBoard);
 
-    // Normal Win (10+)
     if (maxChains[turn].size >= WINNING_CHAIN) return { winner: turn, reason: t('win_reason'), winningCells: winCells };
     if (maxChains[turn === 'white' ? 'black' : 'white'].size >= WINNING_CHAIN) {
       return { winner: turn === 'white' ? 'black' : 'white', reason: t('win_reason'), winningCells: winCells };
     }
 
-    // Stalemate Check (Next player cannot move)
     const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
     if (!canPlayerMove(nextPlayer, currentBoard, currentSupply)) {
       const whiteScore = maxChains.white;
       const blackScore = maxChains.black;
-
       let winner = null;
       let reason = t('tie_reason_stale') + " ";
 
@@ -557,10 +565,8 @@ export default function XokGameHex() {
           reason += t('tie_reason_draw');
         }
       }
-
       return { winner, reason, winningCells: [] };
     }
-
     return null;
   };
 
@@ -620,14 +626,12 @@ export default function XokGameHex() {
     return (target && selectedAction === 'shark') ? getImpactedCells(target.q, target.r) : [];
   }, [confirmMove, hoverCell, selectedAction, currentMouths, board, turn]);
 
-  // Defined here to be used by AI logic
   const endTurnDB = async (newBoard, newSupply) => {
-    const winResult = checkWinLocal(newBoard, newSupply); // Pass newSupply for stalemate check
+    const winResult = checkWinLocal(newBoard, newSupply);
     const nextPlayer = turn === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
     const logMsg = `${turn === 'white' ? t('white') : t('black')} ha mogut.`;
     const newLogs = [logMsg, ...gameLog].slice(0, 5);
 
-    // If win/tie, prevent turn change (or handle it)
     const nextTurnState = winResult ? turn : nextPlayer;
 
     await updateGameState(
@@ -688,30 +692,17 @@ export default function XokGameHex() {
   const makeAIMove = () => {
     const cpuColor = PLAYERS.BLACK;
     const opponent = PLAYERS.WHITE;
-    const opponentChain = chainLengths[opponent].size; // Access .size
+    const opponentChain = chainLengths[opponent].size;
     const myChain = chainLengths[cpuColor].size;
 
     const shuffledBoard = [...board].sort(() => Math.random() - 0.5);
     const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
     sharkTypes.sort(() => Math.random() - 0.5);
 
-    // --- IMPROVED STRATEGY LOGIC ---
-
-    // 1. DETERMINE URGENCY
-    const isEmergency = opponentChain >= 6;
-    const isOpportunity = myChain >= 8;
-
-    // Early game passive play: If opponent < 5 and I < 8, relax
-    const isEarlyGame = opponentChain < 5 && myChain < 8;
-
-    // 2. SHARK EVALUATION FUNCTION
-    const evaluateSharkMove = (minEaten = 1, criticalOnly = false) => {
+    const findAllSharkMoves = () => {
+      let moves = [];
       for (const sType of sharkTypes) {
         if (supply[cpuColor][sType] > 0) {
-          // For BIG SHARKS, try to eat 3 unless critical
-          const isBig = sType !== PIECE_TYPES.SHARK_SMALL;
-          const targetEat = (isBig && !criticalOnly) ? 3 : minEaten;
-
           for (const cell of shuffledBoard) {
             if (cell.owner === cpuColor || (cell.type && cell.type.includes('shark'))) continue;
 
@@ -729,73 +720,111 @@ export default function XokGameHex() {
                 if (nCell && nCell.type === PIECE_TYPES.FISH && nCell.owner === opponent) eaten++;
               });
 
-                // Bonus for eating under
-                const score = eaten + (eatsUnder ? 0.5 : 0);
-                const threshold = targetEat + (eatsUnder ? 0.5 : 0);
-
-                if (score >= threshold) {
-                  return { type: 'shark', q: cell.q, r: cell.r, sharkType: sType, mouths: mouths, eatenCount: eaten };
+                if (eaten > 0) {
+                  moves.push({
+                    type: 'shark',
+                    q: cell.q,
+                    r: cell.r,
+                    sharkType: sType,
+                    mouths: mouths,
+                    eatenCount: eaten,
+                    dist: getDistance(cell.q, cell.r, BOARD_CENTER.q, BOARD_CENTER.r),
+                             eatsUnder: eatsUnder
+                  });
                 }
             }
           }
         }
       }
-      return null;
+      return moves;
+    };
+
+    // Scoring function for sorting
+    const scoreSharkMove = (m) => {
+      let score = m.eatenCount * 10;
+      if (m.eatsUnder) score += 2; // Eating under is good
+      // Prefer center: less distance is better
+      score -= m.dist * 0.5;
+      return score;
     };
 
     let bestMove = null;
+    let allSharkMoves = findAllSharkMoves();
 
-    // A. Critical Defense / Finisher
-    if (isEmergency || isOpportunity) {
-      bestMove = evaluateSharkMove(1, true);
+    // Sort desc by score
+    allSharkMoves.sort((a, b) => scoreSharkMove(b) - scoreSharkMove(a));
+
+    // Try to pick best shark move if high value
+    if (allSharkMoves.length > 0) {
+      const top = allSharkMoves[0];
+      // If big shark (2 mouths), prefer eating >= 3
+      // Or if small shark, eat >= 2
+      const isBig = top.sharkType !== PIECE_TYPES.SHARK_SMALL;
+
+      if ((isBig && top.eatenCount >= 3) || (!isBig && top.eatenCount >= 2)) {
+        bestMove = top;
+      } else if (opponentChain >= 7 || myChain >= 8) {
+        // Emergency or finishing move, take best available even if low value
+        bestMove = top;
+      }
     }
 
-    // B. Strategic Fish Placement (Priority in Early Game)
-    // Try to place fish even if shark possible, to save sharks for later
+    // If no good shark move found yet, prioritize fish (development) if opponent not dangerous
     if (!bestMove && supply[cpuColor].fish >= 2) {
-      const occupied = board.filter(c => c.type);
+      const emptyCells = shuffledBoard.filter(c => !c.type);
       let candidates = [];
 
       // Get neighbors of all pieces to play "connected"
-      const candidateSet = new Set();
-      occupied.forEach(p => {
-        getNeighbors(p.q, p.r).forEach(n => {
-          const c = board.find(b => b.q === n.q && b.r === n.r);
-          if (c && !c.type) candidateSet.add(c);
+      const myPieces = board.filter(c => c.owner === cpuColor);
+      const oppPieces = board.filter(c => c.owner === opponent);
+
+      const getEmptyNeighbors = (pieces) => {
+        const targets = new Set();
+        pieces.forEach(p => {
+          getNeighbors(p.q, p.r).forEach(n => {
+            const c = board.find(b => b.q === n.q && b.r === n.r);
+            if (c && !c.type) targets.add(c);
+          });
         });
-      });
-      candidates = Array.from(candidateSet);
-      if (candidates.length < 2) candidates = shuffledBoard.filter(c => !c.type);
+        return Array.from(targets);
+      };
 
-      candidates.sort(() => Math.random() - 0.5);
+      const myNeighbors = getEmptyNeighbors(myPieces);
+      const oppNeighbors = getEmptyNeighbors(oppPieces);
 
-      for (const c1 of candidates) {
+      // Priority 1: Cells that touch both (block & build)
+      candidates = myNeighbors.filter(c => oppNeighbors.includes(c));
+
+      // Priority 2: Cells that touch opponent (block) or mine (build)
+      if (candidates.length < 2) candidates = [...candidates, ...myNeighbors, ...oppNeighbors];
+
+      // Priority 3: Any empty
+      if (candidates.length < 2) candidates = [...candidates, ...emptyCells];
+
+      // Unique candidates
+      candidates = [...new Set(candidates)];
+
+      // Find pair of adjacent candidates
+      for (let i = 0; i < candidates.length; i++) {
+        const c1 = candidates[i];
         const ns = getNeighbors(c1.q, c1.r);
-        const validNeighbors = ns.map(n => board.find(b => b.q === n.q && b.r === n.r)).filter(b => b && !b.type);
-        if (validNeighbors.length > 0) {
-          const c2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+        const c2 = candidates.find(c => c !== c1 && ns.some(n => n.q === c.q && n.r === c.r));
+
+        if (c2) {
           bestMove = { type: 'fish', q1: c1.q, r1: c1.r, q2: c2.q, r2: c2.r };
-          // If early game, we prefer fish over shark search below, so break and use this
-          if (isEarlyGame) break;
-          // If not early game, we might still prefer shark if good opportunity found below
+          break;
         }
       }
     }
 
-    // C. High Value Attack (Eat 2+) - Only if not early game or if we didn't find fish move
-    if (!bestMove && !isEarlyGame) {
-      bestMove = evaluateSharkMove(2, false);
-    }
-
-    // D. Desperate Shark (Eat 1)
-    if (!bestMove) {
-      bestMove = evaluateSharkMove(1, false);
+    // Fallback: Use best shark move even if suboptimal (better than passing or stuck)
+    if (!bestMove && allSharkMoves.length > 0) {
+      bestMove = allSharkMoves[0];
     }
 
     if (bestMove) {
       executeAIMoveAction(bestMove);
     } else {
-      // Pass/Stalemate
       endTurnDB(board, supply);
     }
   };
@@ -837,7 +866,7 @@ export default function XokGameHex() {
     setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]);
   };
 
-  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); setViewingEndGame(false); };
+  const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); };
 
   const handleRestart = async () => {
     if (isLocal || isAI) {
@@ -1008,7 +1037,7 @@ export default function XokGameHex() {
       <div className="flex items-center gap-2 mb-2 text-teal-700 font-black uppercase text-sm"><Trophy size={18} /> {t('game_over')}</div>
       <div className="text-2xl font-black text-slate-800 mb-2">{winner === 'DRAW' ? t('tie_msg') : `${winner === PLAYERS.WHITE ? t('white') : t('black')} ${t('win_msg')}`}</div>
       <div className="text-xs text-teal-600 font-bold mb-4">{winReason}</div>
-      <Button onClick={handleRestart} className="w-full shadow-teal-500/20"><RotateCw size={16}/> {t('play_again')}</Button>
+      <Button onClick={handleRestart} className="w-full shadow-teal-500/20"><RefreshCw size={16}/> {t('play_again')}</Button>
       </div>
     )}
 
