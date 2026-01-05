@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- VERSIÓ ---
-const APP_VERSION = "v2.16 (Touch Fix Final)";
+const APP_VERSION = "v2.18 (UI Polish)";
 
 // ******************************************************************************************
 // *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
@@ -916,13 +916,25 @@ export default function XokGameHex() {
       </div>
       </div>
 
-      <div className={`pointer-events-auto px-6 py-2 rounded-2xl backdrop-blur-md shadow-2xl border transition-all transform hover:scale-105 absolute left-1/2 -translate-x-1/2 top-4 ${turn === PLAYERS.WHITE ? 'bg-white text-slate-900 border-white' : 'bg-slate-900 text-white border-slate-700'}`}>
-      <div className="text-[10px] font-bold opacity-60 uppercase tracking-widest text-center mb-1">{t('log_turn')}</div>
-      <div className="text-xl font-black flex items-center gap-2">
-      {turn === PLAYERS.WHITE ? <div className="w-3 h-3 bg-white border border-slate-300 rounded-full"/> : <div className="w-3 h-3 bg-slate-900 border border-white/20 rounded-full"/>}
+      <div className={`pointer-events-auto px-4 py-1.5 rounded-2xl backdrop-blur-md shadow-2xl border transition-all transform hover:scale-105 absolute left-1/2 -translate-x-1/2 top-4 ${turn === PLAYERS.WHITE ? 'bg-white text-slate-900 border-white' : 'bg-slate-900 text-white border-slate-700'}`}>
+      <div className="text-[10px] font-bold opacity-60 uppercase tracking-widest text-center mb-0.5">{t('log_turn')}</div>
+      <div className="text-sm font-black flex items-center gap-2">
+      {turn === PLAYERS.WHITE ? <div className="w-2.5 h-2.5 bg-white border border-slate-300 rounded-full"/> : <div className="w-2.5 h-2.5 bg-slate-900 border border-white/20 rounded-full"/>}
       {turn === PLAYERS.WHITE ? t('white') : t('black')}
-      {isAI && turn === PLAYERS.BLACK && <Loader2 size={16} className="animate-spin ml-2 opacity-50"/>}
+      {isAI && turn === PLAYERS.BLACK && <Loader2 size={14} className="animate-spin ml-1 opacity-50"/>}
       </div>
+      </div>
+
+      {/* ROOM ID OVERLAY (TOP RIGHT) - VISIBLE */}
+      <div className="pointer-events-auto absolute right-4 top-4 z-50">
+      {!isLocal && !isAI && (
+        <div className="bg-black/60 backdrop-blur px-3 py-2 rounded-xl border border-white/20 text-white text-xs font-mono flex flex-col items-center gap-1 cursor-pointer hover:bg-black/80 shadow-lg animate-in fade-in slide-in-from-top-4" onClick={() => {navigator.clipboard.writeText(roomId); alert("Copiat!")}}>
+        <span className="text-[9px] uppercase font-bold text-white/50">ROOM ID</span>
+        <div className="flex items-center gap-2 font-bold text-lg tracking-wider text-teal-400">
+        {roomId} <Copy size={14}/>
+        </div>
+        </div>
+      )}
       </div>
       </div>
 
