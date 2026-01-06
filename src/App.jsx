@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, LogOut } from 'lucide-react';
+import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, LogOut, AlertTriangle } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- VERSIÓ ---
-const APP_VERSION = "v2.18 (UI Polish)";
+const APP_VERSION = "v2.19 (Restored Features)";
 
 // ******************************************************************************************
 // *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
@@ -119,10 +119,11 @@ const TRANSLATIONS = {
     title: "XOK", edition: "Edició Digital", turn: "Torn", white: "BLANC", black: "NEGRE",
     actions: "Accions", rules: "Regles", supply: "Disponibles", chain: "Cadena",
     fish_btn: "2 Peixos", fish_sub: "Adjacents", shark_btn: "1 Tauró", shark_sub: "Menja enemic",
-    lobby_create: "Crear sala en línia", lobby_join: "Unir-se a Sala", lobby_id_ph: "Introdueix codi de sala...", lobby_enter: "Entrar",
+    lobby_create: "Crear sala en línia", lobby_join: "Unir-se a Sala", lobby_id_ph: "Codi de sala...", lobby_enter: "Entrar",
     lobby_local: "Jugar en local (passa i juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
+    lobby_name_ph: "El teu nom...",
     game_over: "FINAL DE PARTIDA", win_msg: "GUANYA!", tie_msg: "EMPAT!", play_again: "Jugar de nou", exit_lobby: "Sortir", view_board: "Veure Taulell",
     log_welcome: "Benvingut!", log_turn: "Torn de", log_reset: "Partida reiniciada.",
     win_reason: "Cadena de 10 peces!",
@@ -146,20 +147,24 @@ const TRANSLATIONS = {
     rules_action2_title: "Acció 2: Jugar 1 Tauró",
     rules_action2_desc: "Col·loca un tauró en una casella buida O sobre un peix de l'oponent.",
     rules_shark_eat: "Important: El tauró HA DE menjar almenys un peix enemic. Menja el peix que té a sota i els que assenyalen les seves boques. Els peixos menjats tornen a la reserva del rival.",
-    rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 bocas amb angles fixos: 60°, 120°, 180°).",
+    rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 boques amb angles fixos: 60°, 120°, 180°).",
     rules_end_condition: "Si un jugador no pot fer un moviment vàlid, la partida s'acaba. Guanya qui tingui la cadena més llarga. En cas d'empat, guanya qui tingui més taurons a la cadena. Si persisteix l'empat, guanyeu tots dos.",
     rules_links_title: "Enllaços d'interès",
     link_bgg: "Veure a BoardGameGeek",
-    link_publisher: "Web oficial (Steffen Spiele)"
+    link_publisher: "Web oficial (Steffen Spiele)",
+    exit_confirm_title: "Sortir de la partida?",
+    exit_confirm_msg: "Si surts ara, es perdrà el progrés actual.",
+    cancel: "Cancel·lar", confirm_exit: "Sortir"
   },
   en: {
     title: "XOK", edition: "Digital Edition", turn: "Turn", white: "WHITE", black: "BLACK",
     actions: "Actions", rules: "Rules", supply: "Available", chain: "Chain",
     fish_btn: "2 Fish", fish_sub: "Adjacent", shark_btn: "1 Shark", shark_sub: "Eats enemy",
-    lobby_create: "Create Online Room", lobby_join: "Join Room", lobby_id_ph: "Enter room code...", lobby_enter: "Enter",
+    lobby_create: "Create Online Room", lobby_join: "Join Room", lobby_id_ph: "Room code...", lobby_enter: "Enter",
     lobby_local: "Play Local (Pass & Play)", lobby_ai: "Play vs CPU (AI)",
     lobby_waiting: "Waiting for opponent...", lobby_share: "Share code:",
     lobby_online_divider: "ONLINE",
+    lobby_name_ph: "Your name...",
     game_over: "GAME OVER", win_msg: "WINS!", tie_msg: "DRAW!", play_again: "Play Again", exit_lobby: "Exit", view_board: "View Board",
     log_welcome: "Welcome!", log_turn: "Turn of", log_reset: "Game reset.",
     win_reason: "Chain of 10 pieces!",
@@ -187,18 +192,22 @@ const TRANSLATIONS = {
     rules_end_condition: "If a player cannot make a valid move, the game ends. The player with the longest chain wins. In case of a tie, the one with most sharks in the chain wins. If still tied, both win.",
     rules_links_title: "Useful Links",
     link_bgg: "View on BoardGameGeek",
-    link_publisher: "Official Website (Steffen Spiele)"
+    link_publisher: "Official Website (Steffen Spiele)",
+    exit_confirm_title: "Exit Game?",
+    exit_confirm_msg: "Progress will be lost.",
+    cancel: "Cancel", confirm_exit: "Exit"
   },
   es: {
     title: "XOK", edition: "Edición Digital", turn: "Turno", white: "BLANCO", black: "NEGRO",
     actions: "Acciones", rules: "Reglas", supply: "Disponibles", chain: "Cadena",
     fish_btn: "2 Peces", fish_sub: "Adyacentes", shark_btn: "1 Tiburón", shark_sub: "Come enemigo",
-    lobby_create: "Crear Sala En Línea", lobby_join: "Unirse a Sala", lobby_id_ph: "Introducir código...", lobby_enter: "Entrar",
+    lobby_create: "Crear Sala En Línea", lobby_join: "Unirse a Sala", lobby_id_ph: "Código...", lobby_enter: "Entrar",
     lobby_local: "Jugar en Local (Pasa y Juega)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperando oponente...", lobby_share: "Comparte este código:",
     lobby_online_divider: "EN LÍNEA",
+    lobby_name_ph: "Tu nombre...",
     game_over: "FINAL", win_msg: "GANA!", tie_msg: "¡EMPATE!", play_again: "Jugar de nuevo", exit_lobby: "Salir", view_board: "Ver Tablero",
-    log_welcome: "¡Bienvenido!", log_turn: "Turno de",
+    log_welcome: "¡Bienvenido!", log_turn: "Turno de", log_reset: "Partida reiniciada.",
     win_reason: "¡Cadena de 10 piezas!",
     tie_reason_stale: "No hay movimientos válidos.",
     tie_reason_length: "Gana por cadena más larga.",
@@ -224,7 +233,10 @@ const TRANSLATIONS = {
     rules_end_condition: "Si un jugador no puede mover, el juego termina. Gana quien tenga la cadena más larga. En caso de empate, gana quien tenga más tiburones en ella. Si persiste, ganáis ambos.",
     rules_links_title: "Enlaces de interés",
     link_bgg: "Ver en BoardGameGeek",
-    link_publisher: "Web oficial (Steffen Spiele)"
+    link_publisher: "Web oficial (Steffen Spiele)",
+    exit_confirm_title: "¿Salir de la partida?",
+    exit_confirm_msg: "Se perderá el progreso.",
+    cancel: "Cancelar", confirm_exit: "Salir"
   }
 };
 
@@ -253,16 +265,18 @@ const Modal = ({ title, children, onClose }) => (
 // --- SUBCOMPONENTS ---
 
 // Single Player Card
-const SupplyCard = ({ player, supply, chainLength, isTurn, isLocal, isAI, t, className="" }) => {
+const SupplyCard = ({ player, supply, chainLength, isTurn, isLocal, isAI, t, className="", name, isPlayer }) => {
   const isWhite = player === PLAYERS.WHITE;
   const label = isWhite ? t('white') : t('black');
-  const isPlayer = (player === PLAYERS.WHITE && !isLocal) || (isAI && player === PLAYERS.WHITE);
   const isBot = isAI && player === PLAYERS.BLACK;
+
+  // Noms: Prioritzar nom personalitzat, sinó el per defecte
+  // "(TU)" es mostra si 'isPlayer' és true
 
   return (
     <div className={`p-2 rounded-xl backdrop-blur-md border transition-all shadow-lg w-32 pointer-events-auto ${isTurn ? (isWhite ? 'bg-white/90 border-teal-400 ring-2 ring-teal-400/50 text-slate-900' : 'bg-slate-900/90 border-teal-400 ring-2 ring-teal-400/50 text-white') : 'bg-black/30 border-white/10 text-white/60'} ${className}`}>
-    <div className="font-black text-[10px] mb-1 flex items-center justify-center gap-1 uppercase tracking-wider">
-    {label} {isBot && <Bot size={12}/>} {isPlayer && "(TU)"}
+    <div className="font-black text-[10px] mb-1 flex items-center justify-center gap-1 uppercase tracking-wider truncate px-1">
+    {isBot && <Bot size={12}/>} {name || label} {isPlayer && "(TU)"}
     </div>
 
     <div className="grid grid-cols-1 gap-1 text-[10px]">
@@ -352,6 +366,7 @@ export default function XokGameHex() {
   const [isLocal, setIsLocal] = useState(false);
   const [isAI, setIsAI] = useState(false);
   const [inputRoomId, setInputRoomId] = useState('');
+  const [inputPlayerName, setInputPlayerName] = useState('');
   const [creatingRoom, setCreatingRoom] = useState(false);
 
   const [board, setBoard] = useState(generateBoardCells);
@@ -361,6 +376,7 @@ export default function XokGameHex() {
   const [winReason, setWinReason] = useState('');
   const [winningCells, setWinningCells] = useState([]);
   const [gameLog, setGameLog] = useState(["Benvingut a XOK!"]);
+  const [playerNames, setPlayerNames] = useState({ white: 'BLANC', black: 'NEGRE' });
 
   const [phase, setPhase] = useState('SELECT_ACTION');
   const [selectedAction, setSelectedAction] = useState(null);
@@ -371,6 +387,22 @@ export default function XokGameHex() {
   const [boardScale, setBoardScale] = useState(1);
   const [showRules, setShowRules] = useState(false);
   const [viewingEndGame, setViewingEndGame] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Set Favicon
+  useEffect(() => {
+    const setFavicon = () => {
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14c-1.5 0-3-1-4.5-3-1.5-2-3.5-6-3.5-6s-2 3-4.5 4C6.5 10 4 11 2 11c3 5 8 6 13 5 3-.5 5-2 7-2z" /><path d="M14 5c.5 2 1 4 2 6" /><circle cx="18" cy="11" r="1" fill="#0d9488" stroke="none" /></svg>`;
+      const blob = new Blob([svgString], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/svg+xml';
+      link.rel = 'shortcut icon';
+      link.href = url;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    };
+    setFavicon();
+  }, []);
 
   const getBrowserLang = () => {
     const navLang = navigator.language || navigator.userLanguage;
@@ -420,6 +452,14 @@ export default function XokGameHex() {
             setWinningCells(Array.isArray(wc) ? wc : []);
           } catch(e) { setWinningCells([]); }
         } else { setWinningCells([]); }
+
+        // Update Names from DB
+        if (data.whiteName || data.blackName) {
+          setPlayerNames({
+            white: data.whiteName || 'BLANC',
+            black: data.blackName || 'NEGRE'
+          });
+        }
 
         if (data.logs) setGameLog(data.logs);
         if (data.turn !== turn) setConfirmMove(null);
@@ -736,7 +776,20 @@ export default function XokGameHex() {
       try {
         const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', newRoomId);
-        const initialState = { board: JSON.stringify(generateBoardCells()), turn: PLAYERS.WHITE, supply: INITIAL_SUPPLY, winner: null, winReason: '', logs: [t('log_welcome')], createdAt: new Date().toISOString() };
+
+        // Save Name
+        const name = inputPlayerName.trim() || 'BLANC';
+
+        const initialState = {
+          board: JSON.stringify(generateBoardCells()),
+          turn: PLAYERS.WHITE,
+          supply: INITIAL_SUPPLY,
+          winner: null,
+          winReason: '',
+          logs: [t('log_welcome')],
+          whiteName: name, // Store name
+          createdAt: new Date().toISOString()
+        };
         await setDoc(roomRef, initialState);
         setRoomId(newRoomId); setPlayerColor(PLAYERS.WHITE); setIsLocal(false); setIsAI(false); setIsJoined(true);
       } catch (error) { console.error("Error creant sala:", error); alert(t('err_create') + "\n" + error.message); } finally { setCreatingRoom(false); }
@@ -747,7 +800,13 @@ export default function XokGameHex() {
       const cleanId = inputRoomId.toUpperCase().trim();
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'xok_rooms', cleanId);
       const snap = await getDoc(roomRef);
-      if (snap.exists()) { setRoomId(cleanId); setPlayerColor(PLAYERS.BLACK); setIsLocal(false); setIsAI(false); setIsJoined(true); } else { alert(t('err_full')); }
+      if (snap.exists()) {
+        // Update Black Name
+        const name = inputPlayerName.trim() || 'NEGRE';
+        await updateDoc(roomRef, { blackName: name });
+
+        setRoomId(cleanId); setPlayerColor(PLAYERS.BLACK); setIsLocal(false); setIsAI(false); setIsJoined(true);
+      } else { alert(t('err_full')); }
     };
 
     const startLocalGame = () => { setRoomId(null); setPlayerColor(null); setIsLocal(true); setIsAI(false); setIsJoined(true); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]); };
@@ -757,7 +816,16 @@ export default function XokGameHex() {
       setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setTurn(PLAYERS.WHITE); setGameLog([t('log_welcome')]);
     };
 
-    const exitLobby = () => { setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); setViewingEndGame(false); };
+    const handleExitClick = () => {
+      setShowExitConfirm(true);
+    };
+
+    const confirmExit = () => {
+      setShowExitConfirm(false);
+      setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); setViewingEndGame(false);
+    };
+
+    const exitLobby = () => { handleExitClick(); }; // Redirect for consistency
 
     const handleRestart = async () => {
       if (isLocal || isAI) {
@@ -885,7 +953,18 @@ export default function XokGameHex() {
         <div className="absolute top-4 right-4 flex gap-2"><button onClick={() => setLang('ca')} className={`text-xs font-bold px-1 ${lang==='ca' ? 'text-teal-600 underline' : 'text-slate-400'}`}>CA</button><button onClick={() => setLang('en')} className={`text-xs font-bold px-1 ${lang==='en' ? 'text-teal-600 underline' : 'text-slate-400'}`}>EN</button><button onClick={() => setLang('es')} className={`text-xs font-bold px-1 ${lang==='es' ? 'text-teal-600 underline' : 'text-slate-400'}`}>ES</button></div>
         <div className="flex justify-center mb-6"><div className="p-4 bg-teal-100 rounded-full"><SharkIcon size={48} color="#0d9488" /></div></div>
         <h1 className="text-4xl font-black text-center text-slate-800 mb-2">XOK</h1>
-        <p className="text-center text-slate-500 mb-8">{t('edition')}</p>
+        <p className="text-center text-slate-500 mb-6">{t('edition')}</p>
+
+        <div className="mb-6">
+        <input
+        type="text"
+        placeholder={t('lobby_name_ph')}
+        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none text-center font-bold text-slate-900 placeholder-slate-400 bg-white"
+        value={inputPlayerName}
+        onChange={(e) => setInputPlayerName(e.target.value)}
+        />
+        </div>
+
         <div className="space-y-3">
         <Button onClick={startLocalGame} className="w-full py-4 text-lg shadow-teal-500/30 bg-indigo-600 hover:bg-indigo-700 gap-4"><div className="flex items-center gap-1 bg-indigo-800/0 px-2 py-1 rounded-lg"><User size={18}/><span className="text-[10px] font-black">VS</span><User size={18}/></div><span>{t('lobby_local')}</span></Button>
         <Button onClick={startAIGame} className="w-full py-4 text-lg shadow-purple-500/30 bg-purple-600 hover:bg-purple-700 gap-4"><div className="flex items-center gap-1 bg-purple-800/0 px-2 py-1 rounded-lg"><User size={18}/><span className="text-[10px] font-black">VS</span><Bot size={18}/></div><span>{t('lobby_ai')}</span></Button>
@@ -893,7 +972,16 @@ export default function XokGameHex() {
         <Button onClick={createRoom} disabled={creatingRoom} className="w-full py-3 gap-3" variant="secondary">
         {creatingRoom ? <><Loader2 size={20} className="animate-spin"/> Creant...</> : <><Users size={20}/> {t('lobby_create')}</>}
         </Button>
-        <div className="flex gap-2"><input type="text" placeholder={t('lobby_id_ph')} className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none font-mono uppercase text-center" value={inputRoomId} onChange={(e) => setInputRoomId(e.target.value)} /><Button onClick={joinRoom} variant="primary">{t('lobby_enter')}</Button></div>
+        <div className="flex gap-2">
+        <input
+        type="text"
+        placeholder={t('lobby_id_ph')}
+        className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none font-mono uppercase text-center text-slate-900 placeholder-slate-400 bg-white"
+        value={inputRoomId}
+        onChange={(e) => setInputRoomId(e.target.value)}
+        />
+        <Button onClick={joinRoom} variant="primary">{t('lobby_enter')}</Button>
+        </div>
         </div>
         </div>
         </div>
@@ -920,7 +1008,8 @@ export default function XokGameHex() {
       <div className="text-[10px] font-bold opacity-60 uppercase tracking-widest text-center mb-0.5">{t('log_turn')}</div>
       <div className="text-sm font-black flex items-center gap-2">
       {turn === PLAYERS.WHITE ? <div className="w-2.5 h-2.5 bg-white border border-slate-300 rounded-full"/> : <div className="w-2.5 h-2.5 bg-slate-900 border border-white/20 rounded-full"/>}
-      {turn === PLAYERS.WHITE ? t('white') : t('black')}
+      {/* Here we fix the player name display in turn indicator */}
+      {turn === PLAYERS.WHITE ? playerNames.white : playerNames.black}
       {isAI && turn === PLAYERS.BLACK && <Loader2 size={14} className="animate-spin ml-1 opacity-50"/>}
       </div>
       </div>
@@ -940,7 +1029,7 @@ export default function XokGameHex() {
 
       {/* LEFT PANEL: SUPPLY & CONTROLS */}
       <div className="absolute top-24 left-2 bottom-4 z-40 w-32 flex flex-col gap-4 pointer-events-none">
-      <SupplyCard player={PLAYERS.WHITE} supply={supply.white} chainLength={chainLengths.white.size} isTurn={turn === PLAYERS.WHITE} isLocal={isLocal} isAI={isAI} t={t} />
+      <SupplyCard player={PLAYERS.WHITE} supply={supply.white} chainLength={chainLengths.white.size} isTurn={turn === PLAYERS.WHITE} isLocal={isLocal} isAI={isAI} t={t} name={playerNames.white} isPlayer={!isAI && !isLocal && playerColor === PLAYERS.WHITE} />
 
       {!winner && (isLocal || turn === playerColor || (isAI && turn === PLAYERS.WHITE)) && (
         <div className="flex flex-col gap-2 mt-auto pointer-events-auto">
@@ -962,14 +1051,14 @@ export default function XokGameHex() {
       {/* RIGHT PANEL: BLACK SUPPLY & VERSION */}
       <div className="absolute top-24 right-2 bottom-4 z-40 w-32 flex flex-col items-end justify-between pointer-events-none">
       <div className="w-full pointer-events-auto">
-      <SupplyCard player={PLAYERS.BLACK} supply={supply.black} chainLength={chainLengths.black.size} isTurn={turn === PLAYERS.BLACK} isLocal={isLocal} isAI={isAI} t={t} />
+      <SupplyCard player={PLAYERS.BLACK} supply={supply.black} chainLength={chainLengths.black.size} isTurn={turn === PLAYERS.BLACK} isLocal={isLocal} isAI={isAI} t={t} name={playerNames.black} isPlayer={!isAI && !isLocal && playerColor === PLAYERS.BLACK} />
       </div>
       <div className="flex flex-col items-end gap-2 w-full pointer-events-auto">
       <div className="flex flex-col gap-2 w-full">
       <button onClick={() => setShowRules(true)} className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-end gap-2 text-white backdrop-blur border border-white/10 text-xs font-bold transition-all shadow-lg w-full">
       {t('rules')} <BookOpen size={16}/>
       </button>
-      <button onClick={exitLobby} className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-end gap-2 text-red-100 backdrop-blur border border-red-500/20 text-xs font-bold transition-all shadow-lg w-full">
+      <button onClick={handleExitClick} className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-end gap-2 text-red-100 backdrop-blur border border-red-500/20 text-xs font-bold transition-all shadow-lg w-full">
       {t('exit_lobby')} <LogOut size={16}/>
       </button>
       </div>
@@ -991,11 +1080,25 @@ export default function XokGameHex() {
         <div className="absolute top-24 left-4 z-50 pointer-events-auto w-48 animate-in slide-in-from-left-4">
         <div className="bg-black/60 backdrop-blur border-2 border-teal-500 p-4 rounded-xl shadow-2xl text-center">
         <Trophy size={32} className="mx-auto text-yellow-400 mb-2 animate-bounce" />
-        <div className="text-xl font-black text-white mb-1">{winner === 'DRAW' ? t('tie_msg') : (winner === PLAYERS.WHITE ? "BLANC" : "NEGRE")}</div>
+        <div className="text-xl font-black text-white mb-1">{winner === 'DRAW' ? t('tie_msg') : (winner === PLAYERS.WHITE ? playerNames.white : playerNames.black)}</div>
         <div className="text-[10px] text-teal-300 font-bold mb-4 uppercase tracking-widest">{winReason}</div>
         <Button onClick={handleRestart} className="w-full shadow-teal-500/20 bg-emerald-500 hover:bg-emerald-400"><RotateCw size={16}/> {t('play_again')}</Button>
         </div>
         </div>
+      )}
+
+      {/* EXIT CONFIRMATION MODAL */}
+      {showExitConfirm && (
+        <Modal title={t('exit_confirm_title')} onClose={() => setShowExitConfirm(false)}>
+        <div className="text-center">
+        <div className="flex justify-center mb-4"><AlertTriangle size={48} className="text-yellow-500"/></div>
+        <p className="text-slate-600 mb-6">{t('exit_confirm_msg')}</p>
+        <div className="flex gap-2">
+        <Button onClick={() => setShowExitConfirm(false)} variant="outline" className="flex-1 text-slate-600 border-slate-300 hover:bg-slate-50">{t('cancel')}</Button>
+        <Button onClick={confirmExit} variant="secondary" className="flex-1 bg-red-500 hover:bg-red-600 text-white">{t('confirm_exit')}</Button>
+        </div>
+        </div>
+        </Modal>
       )}
 
       {/* RULES MODAL */}
