@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, LogOut, AlertTriangle } from 'lucide-react';
+import { Fish, Trophy, Info, ArrowUp, ArrowDown, Check, Link as LinkIcon, X, BookOpen, Copy, Users, Monitor, Smartphone, RotateCcw, RotateCw, Loader2, Bot, User, Eye, LogOut, AlertTriangle, ArrowRight } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // --- VERSIÓ ---
-const APP_VERSION = "v2.19 (Restored Features)";
+const APP_VERSION = "v2.24";
 
 // ******************************************************************************************
 // *** 1. ZONA D'EDICIÓ: ENGANXA LES TEVES DADES DE FIREBASE AQUÍ SOTA ***
@@ -118,12 +118,13 @@ const TRANSLATIONS = {
   ca: {
     title: "XOK", edition: "Edició Digital", turn: "Torn", white: "BLANC", black: "NEGRE",
     actions: "Accions", rules: "Regles", supply: "Disponibles", chain: "Cadena",
-    fish_btn: "2 Peixos", fish_sub: "Adjacents", shark_btn: "1 Tauró", shark_sub: "Menja enemic",
+    fish_btn: "2 Peixos", fish_sub: "Adjacents", shark_btn: "1 Tauró", shark_sub: "Opcional menjar",
     lobby_create: "Crear sala en línia", lobby_join: "Unir-se a Sala", lobby_id_ph: "Codi de sala...", lobby_enter: "Entrar",
     lobby_local: "Jugar en local (passa i juga)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperant oponent...", lobby_share: "Comparteix aquest codi:",
     lobby_online_divider: "EN LÍNIA",
     lobby_name_ph: "El teu nom...",
+    lobby_how_to_play: "Com es juga?",
     game_over: "FINAL DE PARTIDA", win_msg: "GUANYA!", tie_msg: "EMPAT!", play_again: "Jugar de nou", exit_lobby: "Sortir", view_board: "Veure Taulell",
     log_welcome: "Benvingut!", log_turn: "Torn de", log_reset: "Partida reiniciada.",
     win_reason: "Cadena de 10 peces!",
@@ -140,14 +141,25 @@ const TRANSLATIONS = {
     instr_fish_1: "Col·loca el primer peix",
     instr_fish_2: "Col·loca el segon peix",
     ai_thinking: "La CPU està pensant...",
+
+    // Noves traduccions Regles
     rules_title: "Com Jugar a XOK",
+    rules_tab_basics: "Bàsics",
+    rules_tab_sharks: "Taurons",
+    rules_tab_end: "Final",
     rules_goal: "Connecta 10 peces del teu color (peixos o taurons) en una cadena contínua per guanyar.",
-    rules_action1_title: "Acció 1: Jugar 2 Peixos",
+    rules_turn_choice: "En el teu torn, tria UNA d'aquestes accions:",
+    rules_action1_title: "OPCIÓ A: Jugar 2 Peixos",
     rules_action1_desc: "Col·loca 2 peixos de la teva reserva en dues caselles buides adjacents qualsevol.",
-    rules_action2_title: "Acció 2: Jugar 1 Tauró",
+    rules_action2_title: "OPCIÓ B: Jugar 1 Tauró",
     rules_action2_desc: "Col·loca un tauró en una casella buida O sobre un peix de l'oponent.",
-    rules_shark_eat: "Important: El tauró HA DE menjar almenys un peix enemic. Menja el peix que té a sota i els que assenyalen les seves boques. Els peixos menjats tornen a la reserva del rival.",
-    rules_shark_types: "Tipus: Taurons Petits (1 boca) i Grans (2 boques amb angles fixos: 60°, 120°, 180°).",
+    rules_ex_types: "Tipus de taurons",
+    rules_ex_mouth_1: "1 Boca",
+    rules_ex_mouth_2: "2 Boques",
+    rules_no_move: "⚠️ Important: Les peces, un cop jugades al taulell, NO es poden moure de lloc.",
+    rules_no_cannibalism: "⚠️ Els taurons NO poden menjar altres taurons (ni propis ni del rival).",
+    rules_ex_eat: "Com menja el tauró?",
+    rules_ex_eat_desc: "El tauró es menja el peix que té a sota (si n'hi ha) i els peixos als que apunten les seves boques. Els peixos menjats tornen a la reserva del rival (no és obligatori menjar per posar-lo).",
     rules_end_condition: "Si un jugador no pot fer un moviment vàlid, la partida s'acaba. Guanya qui tingui la cadena més llarga. En cas d'empat, guanya qui tingui més taurons a la cadena. Si persisteix l'empat, guanyeu tots dos.",
     rules_links_title: "Enllaços d'interès",
     link_bgg: "Veure a BoardGameGeek",
@@ -159,12 +171,13 @@ const TRANSLATIONS = {
   en: {
     title: "XOK", edition: "Digital Edition", turn: "Turn", white: "WHITE", black: "BLACK",
     actions: "Actions", rules: "Rules", supply: "Available", chain: "Chain",
-    fish_btn: "2 Fish", fish_sub: "Adjacent", shark_btn: "1 Shark", shark_sub: "Eats enemy",
+    fish_btn: "2 Fish", fish_sub: "Adjacent", shark_btn: "1 Shark", shark_sub: "Optional eat",
     lobby_create: "Create Online Room", lobby_join: "Join Room", lobby_id_ph: "Room code...", lobby_enter: "Enter",
     lobby_local: "Play Local (Pass & Play)", lobby_ai: "Play vs CPU (AI)",
     lobby_waiting: "Waiting for opponent...", lobby_share: "Share code:",
     lobby_online_divider: "ONLINE",
     lobby_name_ph: "Your name...",
+    lobby_how_to_play: "How to play?",
     game_over: "GAME OVER", win_msg: "WINS!", tie_msg: "DRAW!", play_again: "Play Again", exit_lobby: "Exit", view_board: "View Board",
     log_welcome: "Welcome!", log_turn: "Turn of", log_reset: "Game reset.",
     win_reason: "Chain of 10 pieces!",
@@ -181,14 +194,24 @@ const TRANSLATIONS = {
     instr_fish_1: "Place the first fish",
     instr_fish_2: "Place the second fish",
     ai_thinking: "CPU is thinking...",
+
     rules_title: "How to Play XOK",
+    rules_tab_basics: "Basics",
+    rules_tab_sharks: "Sharks",
+    rules_tab_end: "Endgame",
     rules_goal: "Connect 10 pieces of your color (fish or sharks) in a continuous chain to win.",
-    rules_action1_title: "Action 1: Play 2 Fish",
+    rules_turn_choice: "On your turn, choose ONE of these actions:",
+    rules_action1_title: "OPTION A: Play 2 Fish",
     rules_action1_desc: "Place 2 fish from your supply on any two adjacent empty spaces.",
-    rules_action2_title: "Action 2: Play 1 Shark",
+    rules_action2_title: "OPTION B: Play 1 Shark",
     rules_action2_desc: "Place a shark on an empty space OR on top of an opponent's fish.",
-    rules_shark_eat: "Important: The shark MUST eat at least one enemy fish. It eats the fish underneath and any fish pointed to by its mouths. Eaten fish return to the opponent's supply.",
-    rules_shark_types: "Types: Small Sharks (1 mouth) and Big Sharks (2 mouths with fixed angles: 60°, 120°, 180°).",
+    rules_ex_types: "Shark Types",
+    rules_ex_mouth_1: "1 Mouth",
+    rules_ex_mouth_2: "2 Mouths",
+    rules_no_move: "⚠️ Important: Once played on the board, pieces CANNOT be moved.",
+    rules_no_cannibalism: "⚠️ Sharks CANNOT eat other sharks (neither yours nor the opponent's).",
+    rules_ex_eat: "How does it eat?",
+    rules_ex_eat_desc: "The shark eats the fish underneath it (if any) and the fish its mouths point to. Eaten fish return to the opponent's supply (eating is not mandatory).",
     rules_end_condition: "If a player cannot make a valid move, the game ends. The player with the longest chain wins. In case of a tie, the one with most sharks in the chain wins. If still tied, both win.",
     rules_links_title: "Useful Links",
     link_bgg: "View on BoardGameGeek",
@@ -200,12 +223,13 @@ const TRANSLATIONS = {
   es: {
     title: "XOK", edition: "Edición Digital", turn: "Turno", white: "BLANCO", black: "NEGRO",
     actions: "Acciones", rules: "Reglas", supply: "Disponibles", chain: "Cadena",
-    fish_btn: "2 Peces", fish_sub: "Adyacentes", shark_btn: "1 Tiburón", shark_sub: "Come enemigo",
+    fish_btn: "2 Peces", fish_sub: "Adyacentes", shark_btn: "1 Tiburón", shark_sub: "Opcional comer",
     lobby_create: "Crear Sala En Línea", lobby_join: "Unirse a Sala", lobby_id_ph: "Código...", lobby_enter: "Entrar",
     lobby_local: "Jugar en Local (Pasa y Juega)", lobby_ai: "Jugar vs CPU (IA)",
     lobby_waiting: "Esperando oponente...", lobby_share: "Comparte este código:",
     lobby_online_divider: "EN LÍNEA",
     lobby_name_ph: "Tu nombre...",
+    lobby_how_to_play: "¿Cómo jugar?",
     game_over: "FINAL", win_msg: "GANA!", tie_msg: "¡EMPATE!", play_again: "Jugar de nuevo", exit_lobby: "Salir", view_board: "Ver Tablero",
     log_welcome: "¡Bienvenido!", log_turn: "Turno de", log_reset: "Partida reiniciada.",
     win_reason: "¡Cadena de 10 piezas!",
@@ -222,20 +246,30 @@ const TRANSLATIONS = {
     instr_fish_1: "Coloca el primer pez",
     instr_fish_2: "Coloca el segundo pez",
     ai_thinking: "La CPU está pensando...",
+
     rules_title: "Cómo Jugar a XOK",
+    rules_tab_basics: "Básico",
+    rules_tab_sharks: "Tiburones",
+    rules_tab_end: "Final",
     rules_goal: "Conecta 10 piezas de tu color (peces o tiburones) en una cadena continua para ganar.",
-    rules_action1_title: "Acción 1: Jugar 2 Peces",
+    rules_turn_choice: "En tu turno, elige UNA de estas acciones:",
+    rules_action1_title: "OPCIÓN A: Jugar 2 Peces",
     rules_action1_desc: "Coloca 2 peces de tu reserva en dos casillas vacías adyacentes cualquiera.",
-    rules_action2_title: "Acción 2: Jugar 1 Tiburón",
+    rules_action2_title: "OPCIÓN B: Jugar 1 Tiburón",
     rules_action2_desc: "Coloca un tiburón en una casilla vacía O sobre un pez del oponente.",
-    rules_shark_eat: "Importante: El tiburón DEBE comer al menos un pez enemigo. Come el pez de abajo y los señalados por sus bocas. Los peces comidos vuelven a la reserva del rival.",
-    rules_shark_types: "Tipos: Tiburones Pequeños (1 boca) y Grandes (2 bocas con ángulos fijos: 60°, 120°, 180°).",
+    rules_ex_types: "Tipos de tiburones",
+    rules_ex_mouth_1: "1 Boca",
+    rules_ex_mouth_2: "2 Bocas",
+    rules_no_move: "⚠️ Importante: Las piezas, una vez jugadas, NO se pueden mover de sitio.",
+    rules_no_cannibalism: "⚠️ Los tiburones NO pueden comer a otros tiburones (ni propios ni del rival).",
+    rules_ex_eat: "¿Cómo come el tiburón?",
+    rules_ex_eat_desc: "El tiburón se come el pez debajo de él (si lo hay) y los peces a los que apuntan sus bocas. Los peces comidos vuelven a la reserva del rival (no es obligatorio comer ninguno).",
     rules_end_condition: "Si un jugador no puede mover, el juego termina. Gana quien tenga la cadena más larga. En caso de empate, gana quien tenga más tiburones en ella. Si persiste, ganáis ambos.",
     rules_links_title: "Enlaces de interés",
     link_bgg: "Ver en BoardGameGeek",
     link_publisher: "Web oficial (Steffen Spiele)",
     exit_confirm_title: "¿Salir de la partida?",
-    exit_confirm_msg: "Se perderá el progreso.",
+    exit_confirm_msg: "Se perderá el progreso actual.",
     cancel: "Cancelar", confirm_exit: "Salir"
   }
 };
@@ -254,13 +288,161 @@ const Button = ({ onClick, disabled, children, className = "", variant = "primar
 
 const Modal = ({ title, children, onClose }) => (
   <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md pointer-events-auto">
-  <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-300 border border-white/20 relative max-h-[90vh] overflow-y-auto">
-  <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={24} /></button>
-  <h3 className="text-3xl font-black text-slate-800 mb-6 font-mono uppercase tracking-tighter text-center">{title}</h3>
-  <div className="mb-2">{children}</div>
+  <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-300 border border-white/20 relative max-h-[90vh] flex flex-col">
+  <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10"><X size={24} /></button>
+  <h3 className="text-2xl font-black text-slate-800 mb-4 font-mono uppercase tracking-tighter text-center shrink-0 pr-6">{title}</h3>
+  <div className="overflow-y-auto overflow-x-hidden flex-1 px-1 custom-scrollbar">
+  {children}
+  </div>
   </div>
   </div>
 );
+
+// Rules Modal content with Tabs
+const RulesModal = ({ onClose, t }) => {
+  const [activeTab, setActiveTab] = useState('basics');
+
+  return (
+    <Modal title={t('rules_title')} onClose={onClose}>
+    {/* TABS */}
+    <div className="flex bg-slate-100 p-1 rounded-xl mb-4 shrink-0">
+    <button onClick={() => setActiveTab('basics')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === 'basics' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t('rules_tab_basics')}</button>
+    <button onClick={() => setActiveTab('sharks')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === 'sharks' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t('rules_tab_sharks')}</button>
+    <button onClick={() => setActiveTab('end')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === 'end' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t('rules_tab_end')}</button>
+    </div>
+
+    {/* TAB CONTENT */}
+    <div className="text-sm text-slate-600">
+
+    {/* BASICS TAB */}
+    {activeTab === 'basics' && (
+      <div className="space-y-4 animate-in fade-in slide-in-from-left-2">
+      <p className="bg-slate-50 p-3 rounded-xl border border-slate-200">{t('rules_goal')}</p>
+
+      <p className="font-black text-slate-800 text-center uppercase tracking-widest text-xs pt-2">{t('rules_turn_choice')}</p>
+
+      <div className="grid gap-3">
+      <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl relative overflow-hidden">
+      <div className="absolute top-2 right-2 opacity-10"><Fish size={40}/></div>
+      <h4 className="font-black text-teal-800 mb-1 flex items-center gap-2">{t('rules_action1_title')}</h4>
+      <p className="text-teal-900/80 leading-snug">{t('rules_action1_desc')}</p>
+      </div>
+
+      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl relative overflow-hidden">
+      <div className="absolute top-2 right-2 opacity-10"><SharkIcon size={40}/></div>
+      <h4 className="font-black text-rose-800 mb-1">{t('rules_action2_title')}</h4>
+      <p className="text-rose-900/80 leading-snug">{t('rules_action2_desc')}</p>
+      </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl text-xs shadow-sm">
+      {t('rules_no_move')}
+      </div>
+      </div>
+    )}
+
+    {/* SHARKS TAB */}
+    {activeTab === 'sharks' && (
+      <div className="space-y-4 animate-in fade-in">
+
+      {/* Types of Sharks */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+      <h5 className="font-bold text-slate-700 mb-2 text-xs uppercase tracking-wider">{t('rules_ex_types')}</h5>
+      <div className="grid grid-cols-4 gap-2">
+      {/* Tauró Petit */}
+      <div className="flex flex-col items-center justify-between h-full bg-white p-2 rounded-lg shadow-sm border border-slate-100 text-center">
+      <div className="bg-teal-50 border border-teal-100 text-teal-700 text-[10px] font-black px-1.5 py-0.5 rounded-md mb-1 w-full">x3</div>
+      <span className="text-[9px] font-bold text-slate-500 uppercase leading-none">{t('rules_ex_mouth_1')}</span>
+      <SharkMouthIcon type={PIECE_TYPES.SHARK_SMALL} size={24} className="text-slate-700 my-1"/>
+      <span className="text-[9px] font-bold text-transparent select-none">0º</span> {/* Espaiador invisible per mantenir l'alçada */}
+      </div>
+      {/* Tauró Gran 60 */}
+      <div className="flex flex-col items-center justify-between h-full bg-white p-2 rounded-lg shadow-sm border border-slate-100 text-center">
+      <div className="bg-teal-50 border border-teal-100 text-teal-700 text-[10px] font-black px-1.5 py-0.5 rounded-md mb-1 w-full">x1</div>
+      <span className="text-[9px] font-bold text-slate-500 uppercase leading-none">{t('rules_ex_mouth_2')}</span>
+      <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_60} size={24} className="text-slate-700 my-1"/>
+      <span className="text-[9px] font-bold text-slate-500">60º</span>
+      </div>
+      {/* Tauró Gran 120 */}
+      <div className="flex flex-col items-center justify-between h-full bg-white p-2 rounded-lg shadow-sm border border-slate-100 text-center">
+      <div className="bg-teal-50 border border-teal-100 text-teal-700 text-[10px] font-black px-1.5 py-0.5 rounded-md mb-1 w-full">x1</div>
+      <span className="text-[9px] font-bold text-slate-500 uppercase leading-none">{t('rules_ex_mouth_2')}</span>
+      <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_120} size={24} className="text-slate-700 my-1"/>
+      <span className="text-[9px] font-bold text-slate-500">120º</span>
+      </div>
+      {/* Tauró Gran 180 */}
+      <div className="flex flex-col items-center justify-between h-full bg-white p-2 rounded-lg shadow-sm border border-slate-100 text-center">
+      <div className="bg-teal-50 border border-teal-100 text-teal-700 text-[10px] font-black px-1.5 py-0.5 rounded-md mb-1 w-full">x1</div>
+      <span className="text-[9px] font-bold text-slate-500 uppercase leading-none">{t('rules_ex_mouth_2')}</span>
+      <SharkMouthIcon type={PIECE_TYPES.SHARK_BIG_180} size={24} className="text-slate-700 my-1"/>
+      <span className="text-[9px] font-bold text-slate-500">180º</span>
+      </div>
+      </div>
+      </div>
+
+      {/* Eating Example */}
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+      <h5 className="font-bold text-rose-800 mb-1 text-xs uppercase tracking-wider">{t('rules_ex_eat')}</h5>
+      <p className="text-[11px] text-rose-900/80 mb-3 leading-snug">{t('rules_ex_eat_desc')}</p>
+
+      <div className="flex items-center justify-center gap-3 mb-3">
+      {/* Attacking Shark (On top of a fish) */}
+      <div className="relative w-14 h-14 bg-white rounded-xl border-2 border-slate-300 flex items-center justify-center shadow-lg">
+      <SharkIcon size={32} color="#0f172a" />
+      {/* Boca apuntant a la dreta */}
+      <div className="absolute right-[-10px] top-1/2 -mt-2 w-0 h-0 border-l-[10px] border-l-rose-500 border-y-[7px] border-y-transparent z-10 animate-pulse"></div>
+      {/* Peix de sota menjat */}
+      <Fish size={20} className="absolute opacity-20 text-rose-600" />
+      <X size={16} className="absolute text-rose-500 opacity-60" strokeWidth={4}/>
+      </div>
+
+      <div className="flex flex-col items-center text-rose-400">
+      <ArrowRight strokeWidth={3} className="animate-pulse w-5 h-5"/>
+      </div>
+
+      {/* Eaten Fish */}
+      <div className="relative w-12 h-12 bg-slate-900 rounded-full border-2 border-slate-700 flex items-center justify-center shadow-md">
+      <Fish className="text-white opacity-30" size={24} />
+      <X className="absolute text-rose-500 w-8 h-8 drop-shadow-md" strokeWidth={3} />
+      </div>
+      </div>
+
+      <div className="bg-white/60 border border-rose-100 rounded p-2 text-[11px] text-rose-800 font-medium">
+      {t('rules_no_cannibalism')}
+      </div>
+      </div>
+
+      </div>
+    )}
+
+    {/* ENDGAME TAB */}
+    {activeTab === 'end' && (
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
+      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Trophy size={18} className="text-yellow-500"/> Final de Partida</h4>
+      <p className="leading-relaxed">{t('rules_end_condition')}</p>
+      </div>
+
+      <div className="pt-2">
+      <h4 className="font-bold text-slate-700 mb-2 text-xs uppercase">{t('rules_links_title')}</h4>
+      <div className="flex flex-col gap-2 text-xs">
+      <a href="https://boardgamegeek.com/boardgame/424373/xok" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1 bg-teal-50 p-2 rounded-lg border border-teal-100"><LinkIcon size={14}/> {t('link_bgg')}</a>
+      <a href="https://steffen-spiele.com/products/xok" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1 bg-teal-50 p-2 rounded-lg border border-teal-100"><LinkIcon size={14}/> {t('link_publisher')}</a>
+      </div>
+      </div>
+      </div>
+    )}
+    </div>
+
+    {/* Custom CSS for hiding scrollbar visually but keeping it scrollable */}
+    <style dangerouslySetInnerHTML={{__html: `
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      `}} />
+      </Modal>
+  );
+};
 
 // --- SUBCOMPONENTS ---
 
@@ -269,9 +451,6 @@ const SupplyCard = ({ player, supply, chainLength, isTurn, isLocal, isAI, t, cla
   const isWhite = player === PLAYERS.WHITE;
   const label = isWhite ? t('white') : t('black');
   const isBot = isAI && player === PLAYERS.BLACK;
-
-  // Noms: Prioritzar nom personalitzat, sinó el per defecte
-  // "(TU)" es mostra si 'isPlayer' és true
 
   return (
     <div className={`p-2 rounded-xl backdrop-blur-md border transition-all shadow-lg w-32 pointer-events-auto ${isTurn ? (isWhite ? 'bg-white/90 border-teal-400 ring-2 ring-teal-400/50 text-slate-900' : 'bg-slate-900/90 border-teal-400 ring-2 ring-teal-400/50 text-white') : 'bg-black/30 border-white/10 text-white/60'} ${className}`}>
@@ -529,6 +708,7 @@ export default function XokGameHex() {
   const chainLengths = useMemo(() => calculateChains(board).maxChains, [board, calculateChains]);
 
   const canPlayerMove = (player, currentBoard, currentSupply) => {
+    // 1. Can play fish?
     if (currentSupply[player].fish >= 2) {
       const emptyCells = currentBoard.filter(c => !c.type);
       for (const cell of emptyCells) {
@@ -537,26 +717,15 @@ export default function XokGameHex() {
       }
     }
 
+    // 2. Can play shark? (No longer requires eating)
     const sharkTypes = [PIECE_TYPES.SHARK_SMALL, PIECE_TYPES.SHARK_BIG_60, PIECE_TYPES.SHARK_BIG_120, PIECE_TYPES.SHARK_BIG_180];
-    const opponent = player === PLAYERS.WHITE ? PLAYERS.BLACK : PLAYERS.WHITE;
-
     for (const sType of sharkTypes) {
       if (currentSupply[player][sType] > 0) {
         for (const cell of currentBoard) {
+          // Valid spot if it's empty or an opponent's fish (not owned by me, and not a shark)
           if (cell.owner === player || (cell.type && cell.type.includes('shark'))) continue;
-
-          for (let rot=0; rot<6; rot++) {
-            const mouths = getActiveMouths(sType, rot);
-            let eaten = 0;
-            if (cell.type === PIECE_TYPES.FISH && cell.owner === opponent) eaten++;
-            const neighbors = getNeighbors(cell.q, cell.r);
-            mouths.forEach(dir => {
-              const n = neighbors[dir];
-              const nc = currentBoard.find(c => c.q === n.q && c.r === n.r);
-              if (nc && nc.type === PIECE_TYPES.FISH && nc.owner === opponent) eaten++;
-            });
-              if (eaten > 0) return true;
-          }
+          // Found at least one valid spot
+          return true;
         }
       }
     }
@@ -680,7 +849,12 @@ export default function XokGameHex() {
       newBoard[targetIdx].owner = cpuColor;
       newBoard[targetIdx].mouths = move.mouths;
       newSupply[cpuColor][move.sharkType] -= 1;
-      addLog(`${t('black')} (CPU) menja ${eatenIndices.length} peixos!`);
+
+      if (eatenIndices.length > 0) {
+        addLog(`${t('black')} (CPU) menja ${eatenIndices.length} peixos!`);
+      } else {
+        addLog(`${t('black')} (CPU) posa 1 tauró.`);
+      }
     }
     endTurnDB(newBoard, newSupply);
   };
@@ -755,8 +929,9 @@ export default function XokGameHex() {
       }
     }
 
-    if (!bestMove && !isEarlyGame) bestMove = evaluateSharkMove(2, false);
-    if (!bestMove) bestMove = evaluateSharkMove(1, false);
+    if (!bestMove && !isEarlyGame) bestMove = evaluateSharkMove(1, false);
+    // Fallback: AI accepts to place a shark eating 0 fishes if absolutely nothing else can be done
+    if (!bestMove) bestMove = evaluateSharkMove(0, false);
 
     if (bestMove) executeAIMoveAction(bestMove);
     else endTurnDB(board, supply);
@@ -787,7 +962,7 @@ export default function XokGameHex() {
           winner: null,
           winReason: '',
           logs: [t('log_welcome')],
-          whiteName: name, // Store name
+          whiteName: name,
           createdAt: new Date().toISOString()
         };
         await setDoc(roomRef, initialState);
@@ -825,7 +1000,7 @@ export default function XokGameHex() {
       setIsJoined(false); setRoomId(null); setIsLocal(false); setIsAI(false); setWinner(null); setBoard(generateBoardCells()); setSupply(JSON.parse(JSON.stringify(INITIAL_SUPPLY))); setWinningCells([]); setViewingEndGame(false);
     };
 
-    const exitLobby = () => { handleExitClick(); }; // Redirect for consistency
+    const exitLobby = () => { handleExitClick(); };
 
     const handleRestart = async () => {
       if (isLocal || isAI) {
@@ -867,7 +1042,7 @@ export default function XokGameHex() {
           let valid = false;
           if (selectedAction === 'shark') { valid = !(cell.owner === turn || (cell.type && cell.type.includes('shark'))); }
           else if (phase === 'PLACING_FISH_2') { const neighbors = getNeighbors(tempMove.q1, tempMove.r1); valid = !cell.type && neighbors.some(n => n.q === cell.q && n.r === r); }
-          if (valid) { setConfirmMove({ q, r }); } else if (selectedAction === 'shark') { addLog(t('log_shark_invalid')); } else { addLog(t('log_fish_adj')); }
+          if (valid) { setConfirmMove({ q, r }); } else { addLog(t('log_fish_adj')); }
           return;
         }
       }
@@ -886,15 +1061,17 @@ export default function XokGameHex() {
         const sharkType = sharkSelection.type;
         if (supply[turn][sharkType] <= 0) return;
         const fishToEatIndices = getImpactedCells(q, r).map(ic => board.findIndex(c => c.q === ic.q && c.r === ic.r));
-        if (fishToEatIndices.length === 0) { addLog(t('log_shark_must_eat')); return; }
+
         const newBoard = board.map(c => ({...c}));
         const newSupply = JSON.parse(JSON.stringify(supply));
         const targetCellIndex = newBoard.findIndex(c => c.q === q && c.r === r);
+
         fishToEatIndices.forEach(idx => { const c = newBoard[idx]; newSupply[c.owner].fish += 1; if (c.q !== q || c.r !== r) { newBoard[idx].type = null; newBoard[idx].owner = null; } });
         newBoard[targetCellIndex].type = sharkType;
         newBoard[targetCellIndex].owner = turn;
         newBoard[targetCellIndex].mouths = currentMouths;
         newSupply[turn][sharkType] -= 1;
+
         endTurnDB(newBoard, newSupply);
       }
     };
@@ -982,8 +1159,17 @@ export default function XokGameHex() {
         />
         <Button onClick={joinRoom} variant="primary">{t('lobby_enter')}</Button>
         </div>
+
+        <div className="pt-2">
+        <button onClick={() => setShowRules(true)} className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-teal-700 hover:bg-teal-50 rounded-xl transition-colors border border-transparent hover:border-teal-200">
+        <BookOpen size={16}/> {t('lobby_how_to_play')}
+        </button>
         </div>
         </div>
+        </div>
+
+        {/* Rules Modal in Lobby */}
+        {showRules && <RulesModal onClose={() => setShowRules(false)} t={t} />}
         </div>
       );
     }
@@ -1101,23 +1287,8 @@ export default function XokGameHex() {
         </Modal>
       )}
 
-      {/* RULES MODAL */}
-      {showRules && <Modal title={t('rules_title')} onClose={() => setShowRules(false)}>
-      <div className="space-y-4 text-slate-600 text-sm">
-      <p className="bg-slate-50 p-3 rounded-lg border border-slate-200">{t('rules_goal')}</p>
-      <div><h4 className="font-bold text-teal-700">{t('rules_action1_title')}</h4><p>{t('rules_action1_desc')}</p></div>
-      <div><h4 className="font-bold text-rose-700">{t('rules_action2_title')}</h4><p>{t('rules_action2_desc')}</p><p className="mt-2 text-xs bg-rose-50 p-2 rounded text-rose-800">{t('rules_shark_eat')}</p></div>
-      <p className="text-xs text-slate-400 italic border-t pt-2">{t('rules_shark_types')}</p>
-      <div><h4 className="font-bold text-slate-700">{t('rules_end_condition')}</h4></div>
-      <div className="mt-4 pt-4 border-t border-slate-200">
-      <h4 className="font-bold text-slate-700 mb-2">{t('rules_links_title')}</h4>
-      <div className="flex flex-col gap-2 text-xs">
-      <a href="https://boardgamegeek.com/boardgame/424373/xok" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1"><LinkIcon size={12}/> {t('link_bgg')}</a>
-      <a href="https://steffen-spiele.com/products/xok" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1"><LinkIcon size={12}/> {t('link_publisher')}</a>
-      </div>
-      </div>
-      </div>
-      </Modal>}
+      {/* RULES MODAL (In Game) */}
+      {showRules && <RulesModal onClose={() => setShowRules(false)} t={t} />}
 
       </div>
     );
