@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/{appId}/public/data/xok_rooms/{roomId} {
+      function signedIn() {
+        return request.auth != null;
+      }
+      function member() {
+        return signedIn() && (resource.data.whiteId == request.auth.uid ||
+          resource.data.blackId == request.auth.uid);
+      }
+      function gameFieldsOnly() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'board', 'supply', 'turn', 'logs', 'winner', 'winReason', 'winningCells', 'revision'
+        ]) && request.resource.data.revision == resource.data.revision + 1;
+      }
+      // A guest must read the room before reserving the second seat.
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasAll([
+          'whiteId', 'blackId', 'whiteName', 'board', 'supply', 'turn', 'winner',
+          'winReason', 'logs', 'revision', 'createdAt'
+        ]) && request.resource.data.keys().hasOnly([
+          'whiteId', 'blackId', 'whiteName', 'board', 'supply', 'turn', 'winner',
+          'winReason', 'logs', 'revision', 'createdAt'
+        ]) && request.resource.data.whiteId == request.auth.uid &&
+        request.resource.data.blackId == null && request.resource.data.turn == 'white' &&
+        request.resource.data.winner == null && request.resource.data.revision == 0;
+
+      allow update: if signedIn() && (
+        (resource.data.whiteId is string && resource.data.whiteId != request.auth.uid &&
+          resource.data.blackId == null && resource.data.winner == null &&
+          request.resource.data.blackId == request.auth.uid &&
+          request.resource.data.blackName is string &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['blackId', 'blackName'])) ||
+        (member() && gameFieldsOnly() && resource.data.blackId is string &&
+          resource.data.winner == null &&
+          ((resource.data.turn == 'white' && resource.data.whiteId == request.auth.uid) ||
+           (resource.data.turn == 'black' && resource.data.blackId == request.auth.uid)) &&
+          (request.resource.data.turn == 'white' || request.resource.data.turn == 'black')) ||
+        (member() && gameFieldsOnly() && resource.data.winner != null &&
+          request.resource.data.winner == null && request.resource.data.turn == 'white')
+      );
+      allow delete: if false;
+    }
+  }
+}

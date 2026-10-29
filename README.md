@@ -1,16 +1,43 @@
-# React + Vite
+# XOK WebApp
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicació React/Vite amb joc local, rival CPU i sales en línia amb Firebase Authentication anònim i Firestore.
 
-Currently, two official plugins are available:
+## Executar i verificar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Requereix Node.js 18 o posterior i npm.
 
-## React Compiler
+```sh
+npm ci
+npm run dev
+npm test
+npm run build
+npm run preview
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+El directori de producció és `dist/`.
 
-## Expanding the ESLint configuration
+## Organització
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/App.jsx`: interfície, traduccions i coordinació de partides.
+- `src/game.js`: geometria, cadenes, captures legals i selecció de taurons de la CPU.
+- `src/rooms.js`: operacions transaccionals de creació, reserva de plaça, jugada i reinici.
+- `test/`: regressions de les regles i de les operacions simultànies sobre sales. Les proves de sales utilitzen un doble amb reintents optimistes; no contacten amb Firebase.
+
+## Correccions de v2.25
+
+- Cada tauró ha de capturar almenys un peix enemic. Les regles mostrades en català, castellà i anglès també ho indiquen.
+- En igualtat de longitud de cadena, guanya qui hi té més taurons.
+- La CPU pot utilitzar un tauró gran per capturar un o dos peixos; la puntuació estratègica no elimina jugades legals.
+- Sortir, començar i reiniciar neteja les col·locacions pendents.
+- Les sales guarden `whiteId`, `blackId` i `revision`. Una transacció reserva la plaça negra; les jugades rebutgen un torn incorrecte o una versió antiga. El blanc espera que s’hi incorpori el negre.
+- Les sales anteriors, sense identitats, s’han de recrear. No es pot determinar amb seguretat qui n’era el propietari.
+
+## Regles de Firestore
+
+`firestore.rules` conté la proposta de regles per a les sales de XOK. **Desar aquest fitxer no actualitza les regles del projecte Firebase.** Cal revisar-les i provar-les amb l’emulador abans de publicar-les al projecte `xok-webapp`, preservant les regles que necessitin altres col·leccions.
+
+Substitueix les regles permissives que cobreixin les sales: afegir aquestes restriccions al costat d’un `allow read, write: if true` més general no les protegeix, perquè les autoritzacions coincidents es combinen amb OR.
+
+Aquestes regles protegeixen identitats, ocupació, torns i revisions. El taulell encara es desa com una cadena JSON i la legalitat completa de cada moviment es valida al client. Per impedir trampes d’un client modificat caldria validar el motor del joc en un servei de confiança.
+
+Les proves locals no han publicat regles ni modificat partides del projecte Firebase.
